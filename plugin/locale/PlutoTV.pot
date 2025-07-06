@@ -1,0 +1,129 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: PlutoTV\n"
+"POT-Creation-Date: 2021-01-23 10:34+0100\n"
+"PO-Revision-Date: 2021-03-16 20:17+0100\n"
+"Last-Translator: \n"
+"Language-Team: morser\n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 2.3\n"
+"X-Poedit-Basepath: ../../..\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Poedit-SearchPath-0: .\n"
+
+#: PlutoDownload.py:376
+#, python-format
+msgid "EPG Download: %s Pluto TV"
+msgstr ""
+
+#: PlutoDownload.py:378
+msgid "Wait..."
+msgstr ""
+
+#: PlutoDownload.py:455
+msgid "Wait for Channel: "
+msgstr ""
+
+#: PlutoDownload.py:495
+msgid "The download is in progress. Exit now?"
+msgstr ""
+
+#: plugin.py:267
+msgid "VOD Menu"
+msgstr ""
+
+#: plugin.py:268
+msgid "Loading data... Please wait"
+msgstr ""
+
+#: plugin.py:274
+msgid "Exit"
+msgstr ""
+
+#: plugin.py:275
+msgid "IMDB"
+msgstr ""
+
+#: plugin.py:279
+msgid "Press back or < to go back in the menus"
+msgstr ""
+
+#: plugin.py:346
+msgid "Seasons available"
+msgstr ""
+
+#: plugin.py:480 plugin.py:535
+msgid "Season"
+msgstr ""
+
+#: plugin.py:482
+msgid "Seasons"
+msgstr ""
+
+#: plugin.py:491
+msgid "Episode"
+msgstr ""
+
+#: plugin.py:592
+msgid ""
+"You now have an updated favorites list with Pluto TV channels on your channel "
+"list.\n"
+"\n"
+"Everything will be updated automatically every 5 hours."
+msgstr ""
+
+
+#: plugin.py:599
+msgid "Last:"
+msgstr ""
+
+#: plugin.py:600
+msgid "Update LIveTV Bouquet"
+msgstr ""
+
+#: plugin.py:602
+msgid "Create LiveTV Bouquet"
+msgstr ""
+
+#: plugin.py:605
+msgid "Do you really want to leave PlutoTV?"
+msgstr ""
+
+#: plugin.py:665
+msgid "Do you want to resume this playback?"
+msgstr ""
+
+#: plugin.py:665
+#, python-format
+msgid "Resume position at %s"
+msgstr ""
+
+#: plugin.py:668
+msgid "Stop play and exit to list movie?"
+msgstr ""
+
+#: plugin.py:671
+msgid "Stop play"
+msgstr ""
+
+#: plugin.py:701
+msgid "PlutoTV"
+msgstr ""
+
+#: plugin.py:701
+msgid "View Pluto TV VOD & Download Bouquet for LiveTV Channels"
+msgstr ""
+
+#: plugin.py:702
+msgid "Download PlutoTV Bouquet, picons & EPG"
+msgstr ""
+
+msgid "There is no data, it is possible that Puto TV is not available in your Country"
+msgstr ""
+
+#: plugin.py:703
+msgid "Silent Download PlutoTV"
+msgstr ""
