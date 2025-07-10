@@ -1,0 +1,127 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-07-08 02:47+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ../src/plugin.py:601
+msgid "Create LiveTV Bouquet"
+msgstr ""
+
+#: ../src/plugin.py:607
+msgid "Do you really want to leave PlutoTV?"
+msgstr ""
+
+#: ../src/plugin.py:680
+msgid "Do you want to resume this playback?"
+msgstr ""
+
+#: ../src/plugin.py:710
+msgid "Download PlutoTV Bouquet, picons & EPG"
+msgstr ""
+
+#: ../src/PlutoDownload.py:398
+#, python-format
+msgid "EPG Download: %s Pluto TV"
+msgstr ""
+
+#: ../src/plugin.py:482
+msgid "Episode"
+msgstr ""
+
+#: ../src/plugin.py:259
+msgid "Exit"
+msgstr ""
+
+#: ../src/plugin.py:260
+msgid "IMDB"
+msgstr ""
+
+#: ../src/plugin.py:598
+msgid "Last:"
+msgstr ""
+
+#: ../src/plugin.py:253
+msgid "Loading data... Please wait"
+msgstr ""
+
+#: ../src/plugin.py:709
+msgid "PlutoTV"
+msgstr ""
+
+#: ../src/plugin.py:264
+msgid "Press back or < to go back in the menus"
+msgstr ""
+
+#: ../src/plugin.py:680
+#, python-format
+msgid "Resume position at %s"
+msgstr ""
+
+#: ../src/plugin.py:471 ../src/plugin.py:528
+msgid "Season"
+msgstr ""
+
+#: ../src/plugin.py:473
+msgid "Seasons"
+msgstr ""
+
+#: ../src/plugin.py:332
+msgid "Seasons available"
+msgstr ""
+
+#: ../src/plugin.py:711
+msgid "Silent Download PlutoTV"
+msgstr ""
+
+#: ../src/PlutoDownload.py:528
+msgid "The download is in progress. Exit now?"
+msgstr ""
+
+#: ../src/plugin.py:361
+msgid "There is no data, it is possible that Pluto TV is not available in your Country"
+msgstr ""
+
+#: ../src/PlutoDownload.py:430 ../src/PlutoDownload.py:579
+msgid "There is no data, it is possible that Puto TV is not available in your Country"
+msgstr ""
+
+#: ../src/plugin.py:599
+msgid "Update LiveTV Bouquet"
+msgstr ""
+
+#: ../src/plugin.py:252
+msgid "VOD Menu"
+msgstr ""
+
+#: ../src/plugin.py:709
+msgid "View Pluto TV VOD & Download Bouquet for LiveTV Channels"
+msgstr ""
+
+#: ../src/PlutoDownload.py:487
+msgid "Wait for Channel: "
+msgstr ""
+
+#: ../src/PlutoDownload.py:400
+msgid "Wait..."
+msgstr ""
+
+#: ../src/plugin.py:591
+msgid ""
+"You now have an updated favorites list with Pluto TV channels on your channel list.\n"
+"\n"
+"Everything will be updated automatically every 5 hours."
+msgstr ""
