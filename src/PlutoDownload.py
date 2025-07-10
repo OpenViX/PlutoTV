@@ -581,7 +581,7 @@ class DownloadSilent:
 		self.fd.write("#NAME Pluto TV\n")
 
 		if len(Categories) == 0:
-			print("[Pluto TV] " + _('There is no data, it is possible that Puto TV is not available in your Country'))
+			print("[Pluto TV] " + _('There is no data, it is possible that Pluto TV is not available in your Country'))
 			self.stop()
 			os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
 			open(TIMER_FILE, "w").write(str(time.time()))
