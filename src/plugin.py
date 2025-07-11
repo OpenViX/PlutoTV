@@ -303,10 +303,10 @@ class PlutoTV(Screen):
 			self['description'].setText(film[2].decode('utf-8'))
 			self['vtitle'].setText(film[1].decode('utf-8'))
 			info = film[4].decode('utf-8') + "       "
+			self["key_yellow"].text = self.yellowLabel
 
 			if __type == "movie":
 				info = info + strftime('%Hh %Mm', gmtime(int(film[5])))
-				self["key_yellow"].text = self.yellowLabel
 			else:
 				info = info + str(film[10]) + " " + _("Seasons available")
 			self['vinfo'].setText(info)
@@ -588,27 +588,13 @@ class PlutoTV(Screen):
 
 	def MDB(self):
 		index, name, __type, _id = self.getSelection()
-		if __type == "movie" and self.mdb:
+		if __type in ("movie", "series") and self.mdb:
 			if self.mdb == "tmdb":
-				self.openTMDb(name)
+				from Plugins.Extensions.tmdb.tmdb import tmdbScreen
+				self.session.open(tmdbScreen, name, 2)
 			else:
-				self.openIMDb(name)
-
-	def openTMDb(self, name):
-		try:
-			from Plugins.Extensions.tmdb.tmdb import tmdbScreen
-		except ImportError:
-			self.session.open(MessageBox, _("The TMDb plugin is not installed!\nPlease install it."), type=MessageBox.TYPE_INFO, timeout=10)
-		else:
-			self.session.open(tmdbScreen, name, 2)
-
-	def openIMDb(self, name):
-		try:
-			from Plugins.Extensions.IMDb.plugin import IMDB
-		except ImportError:
-			self.session.open(MessageBox, _("The IMDb plugin is not installed!\nPlease install it."), type=MessageBox.TYPE_INFO, timeout=10)
-		else:
-			self.session.open(IMDB, name, False)
+				from Plugins.Extensions.IMDb.plugin import IMDB
+				self.session.open(IMDB, name, False)
 
 
 class Pluto_Player(MoviePlayer):
