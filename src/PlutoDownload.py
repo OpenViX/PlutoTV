@@ -403,7 +403,7 @@ class PlutoDownload(Screen):
 		self["progress"] = ProgressBar()
 		self["action"] = Label(_("EPG Download: %s Pluto TV") % args)
 		self["wait"] = Label("")
-		self["status"] = Label(_("Wait..."))
+		self["status"] = Label(_("Please wait..."))
 		self["actions"] = ActionMap(["OkCancelActions"], {"cancel": self.salir}, -1)
 		self["picon"] = Pixmap()
 		self.epgcache = eEPGCache.getInstance()
@@ -490,7 +490,7 @@ class PlutoDownload(Screen):
 
 						ref = "4097:0:1:%s:0:0:0:0:0:0" % channel[0]
 						name = channel[2]
-						self["status"].setText(_("Wait for Channel: ")+name)
+						self["status"].setText(_("Waiting for Channel: ")+name)
 
 						chevents = []
 						if channel[1] in GuideList:

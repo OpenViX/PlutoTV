@@ -226,7 +226,6 @@ class PlutoTV(Screen):
 	def __init__(self, session):
 		self.session = session
 		Screen.__init__(self, session)
-		self.skinName = "PlutoTV"
 
 		self['feedlist'] = PlutoList([])
 		self['playlist'] = Label(_("VOD Menu"))
@@ -255,7 +254,7 @@ class PlutoTV(Screen):
 		self.menu = []
 		self.history = []
 		self.chapters = {}
-		self.titlemenu = "Menu"
+		self.titlemenu = _("Menu")
 
 		sc = AVSwitch().getFramebufferScale()
 		self.picload = ePicLoad()
@@ -574,7 +573,7 @@ class PlutoTV(Screen):
 	def updatebutton(self,ret=None):
 		bouquets = open("/etc/enigma2/bouquets.tv","r").read()
 		if fileExists(TIMER_FILE) and "pluto_tv" in bouquets:
-			last = float(open(TIMER_FILE, "r").read().replace("\n","").replace("\r",""))
+			last = float(open(TIMER_FILE, "r").read().replace("\n", "").replace("\r", ""))
 			txt = _("Last:") + strftime(' %x %H:%M', localtime(int(last)))
 			self["key_green"].setText(_("Update LiveTV Bouquet") + "\n" + txt)
 		else:

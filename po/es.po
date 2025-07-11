@@ -111,11 +111,11 @@ msgid "View Pluto TV VOD & Download Bouquet for LiveTV Channels"
 msgstr "Ver Pulto TV Bajo demanda y descargar lista de canales en vivo"
 
 #: ../src/PlutoDownload.py:487
-msgid "Wait for Channel: "
+msgid "Waiting for Channel: "
 msgstr "Esperando el Canal: "
 
 #: ../src/PlutoDownload.py:400
-msgid "Wait..."
+msgid "Please wait..."
 msgstr "Espere..."
 
 #: ../src/plugin.py:591
