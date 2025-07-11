@@ -161,7 +161,9 @@ def getOndemand():
 def getChannels():
 	return sorted(getURL(BASE_LINEUP % ('sid=%s&deviceId=%s'%(getUUID())), header=buildHeader(), life=60 * 60), key=sort)
 
-def getURL(url, param={}, header={'User-agent': 'Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0'}, life=60 * 15):
+def getURL(url, param=None, header={'User-agent': 'Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0'}, life=60 * 15):
+	if param is None:
+		param = {}
 	now = time.time()
 	if url in RequestCache and RequestCache[url][1] > (now - life):
 		return RequestCache[url][0]
@@ -581,7 +583,7 @@ class DownloadSilent:
 		self.fd.write("#NAME Pluto TV\n")
 
 		if len(Categories) == 0:
-			print("[Pluto TV] " + _('There is no data, it is possible that Puto TV is not available in your Country'))
+			print("[Pluto TV] " + _('There is no data, it is possible that Pluto TV is not available in your Country'))
 			self.stop()
 			os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
 			open(TIMER_FILE, "w").write(str(time.time()))

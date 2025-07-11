@@ -96,7 +96,7 @@ msgid "There is no data, it is possible that Pluto TV is not available in your C
 msgstr ""
 
 #: ../src/PlutoDownload.py:430 ../src/PlutoDownload.py:579
-msgid "There is no data, it is possible that Puto TV is not available in your Country"
+msgid "There is no data, it is possible that Pluto TV is not available in your Country"
 msgstr ""
 
 #: ../src/plugin.py:599
