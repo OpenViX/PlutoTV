@@ -558,19 +558,13 @@ class PlutoTV(Screen):
 			string = "4097:0:0:0:0:0:0:0:0:0:%s:%s" % (quote(url), quote(name))
 			reference = eServiceReference(string)
 			if "m3u8" in url.lower():
-				self.session.openWithCallback(self.returnplayer, Pluto_Player, service=reference, sid=id)
+				self.session.open(Pluto_Player, service=reference, sid=id)
 
 	def green(self):
 		self.session.openWithCallback(self.endupdateLive, PlutoDownload.PlutoDownload)
 
 	def endupdateLive(self, ret=None):
 		self.session.openWithCallback(self.updatebutton, MessageBox, _("You now have an updated favorites list with Pluto TV channels on your channel list.\n\nEverything will be updated automatically every 5 hours."), type=MessageBox.TYPE_INFO, timeout=10)
-
-	def returnplayer(self):
-		menu = []
-		for l in self["feedlist"].list:
-			menu.append(self["feedlist"].listentry(l[0][0], l[0][1], l[0][2], l[0][3]))
-		self["feedlist"].setList(menu)
 
 	def updatebutton(self, ret=None):
 		bouquets = open("/etc/enigma2/bouquets.tv", "r").read()
