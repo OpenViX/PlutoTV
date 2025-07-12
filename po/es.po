@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PlutoTV\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-08 02:47+0200\n"
+"POT-Creation-Date: 2025-07-12 21:31+0200\n"
 "PO-Revision-Date: 2021-03-16 20:17+0100\n"
 "Last-Translator: \n"
 "Language-Team: morser\n"
@@ -15,110 +15,105 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Poedit-SearchPath-0: .\n"
 
-#: ../src/plugin.py:601
+#: ../src/plugin.py:582
 msgid "Create LiveTV Bouquet"
 msgstr "Crear lista de canales"
 
-#: ../src/plugin.py:607
-msgid "Do you really want to leave PlutoTV?"
-msgstr "¿Deseas salir realmente de PlutoTV?"
-
-#: ../src/plugin.py:680
+#: ../src/plugin.py:658
 msgid "Do you want to resume this playback?"
 msgstr "¿Deseas reanudar este video donde se dejo?"
 
-#: ../src/plugin.py:710
-msgid "Download PlutoTV Bouquet, picons & EPG"
+#: ../src/plugin.py:689
+msgid "Download PlutoTV bouquet, picons and EPG"
 msgstr "Descargar lista de canales de PlutoTV, picons y EPG"
 
-#: ../src/PlutoDownload.py:398
+#: ../src/PlutoDownload.py:412
 #, python-format
 msgid "EPG Download: %s Pluto TV"
 msgstr "Descarga de EPG: %s Pluto TV"
 
-#: ../src/plugin.py:482
+#: ../src/plugin.py:493
 msgid "Episode"
 msgstr "Episodio"
 
-#: ../src/plugin.py:259
+#: ../src/plugin.py:241
 msgid "Exit"
 msgstr "Salir"
 
-#: ../src/plugin.py:260
-msgid "IMDB"
-msgstr "IMDB"
+#: ../src/plugin.py:244
+msgid "IMDb Search"
+msgstr "IMDb"
 
-#: ../src/plugin.py:598
+#: ../src/plugin.py:579
 msgid "Last:"
 msgstr "Ultim:"
 
-#: ../src/plugin.py:253
+#: ../src/plugin.py:235
 msgid "Loading data... Please wait"
 msgstr "Cargando datos... Por favor espere"
 
-#: ../src/plugin.py:709
+#: ../src/PlutoDownload.py:414
+msgid "Please wait..."
+msgstr "Espere..."
+
+#: ../src/plugin.py:688
 msgid "PlutoTV"
 msgstr "PlutoTV"
 
-#: ../src/plugin.py:264
+#: ../src/plugin.py:248
 msgid "Press back or < to go back in the menus"
 msgstr "Pulse Back o < para ir atras en los menus"
 
-#: ../src/plugin.py:680
+#: ../src/plugin.py:658
 #, python-format
 msgid "Resume position at %s"
 msgstr "Posición de reanudación en %s"
 
-#: ../src/plugin.py:471 ../src/plugin.py:528
+#: ../src/plugin.py:482 ../src/plugin.py:539
 msgid "Season"
 msgstr "Temporada"
 
-#: ../src/plugin.py:473
+#: ../src/plugin.py:484
 msgid "Seasons"
 msgstr "Temporadas"
 
-#: ../src/plugin.py:332
+#: ../src/plugin.py:313
 msgid "Seasons available"
 msgstr "Temporadas disponibles"
 
-#: ../src/plugin.py:711
-msgid "Silent Download PlutoTV"
+#: ../src/plugin.py:690
+msgid "Silently download PlutoTV"
 msgstr "Descarga de PlutoTV en segundo plano"
 
-#: ../src/PlutoDownload.py:528
+#: ../src/plugin.py:244
+msgid "TMDb Search"
+msgstr "TMDb"
+
+#: ../src/PlutoDownload.py:543
 msgid "The download is in progress. Exit now?"
 msgstr "La descarga está en proceso. Desea salir ahora?"
 
-#: ../src/plugin.py:361
-msgid "There is no data, it is possible that Pluto TV is not available in your Country"
+#: ../src/plugin.py:372 ../src/PlutoDownload.py:444 ../src/PlutoDownload.py:592
+msgid "There is no data, it is possible that Pluto TV is not available in your country"
 msgstr "No hay datos, es posible que Pluto TV no este disponible en tu Pais"
 
-#: ../src/PlutoDownload.py:430 ../src/PlutoDownload.py:579
-#, fuzzy
-msgid "There is no data, it is possible that Pluto TV is not available in your Country"
-msgstr "No hay datos, es posible que Pluto TV no este disponible en tu Pais"
-
-#: ../src/plugin.py:599
+#: ../src/plugin.py:580
 msgid "Update LiveTV Bouquet"
 msgstr "Actualizar Lista de canales"
 
-#: ../src/plugin.py:252
+#: ../src/plugin.py:232
 msgid "VOD Menu"
 msgstr "Menú VOD"
 
-#: ../src/plugin.py:709
-msgid "View Pluto TV VOD & Download Bouquet for LiveTV Channels"
-msgstr "Ver Pulto TV Bajo demanda y descargar lista de canales en vivo"
+#: ../src/plugin.py:688
+msgid "View Pluto TV video on demand and download a bouquet of live tv channels"
+msgstr "Ver Pluto TV bajo demanda y descargar lista de canales en vivo"
 
-#: ../src/PlutoDownload.py:487
+#: ../src/PlutoDownload.py:501
 msgid "Waiting for Channel: "
 msgstr "Esperando el Canal: "
 
-#: ../src/PlutoDownload.py:400
-msgid "Please wait..."
-msgstr "Espere..."
-
-#: ../src/plugin.py:591
+#: ../src/plugin.py:567
 msgid ""
 "You now have an updated favorites list with Pluto TV channels on your channel list.\n"
 "\n"

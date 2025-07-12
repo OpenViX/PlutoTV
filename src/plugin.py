@@ -229,8 +229,9 @@ class PlutoTV(Screen):
 		self.session = session
 		Screen.__init__(self, session)
 
+		self.titlemenu = _("VOD Menu")
 		self["feedlist"] = PlutoList([])
-		self["playlist"] = Label(_("VOD Menu"))
+		self["playlist"] = Label(self.titlemenu)
 		self["loading"] = Label(_("Loading data... Please wait"))
 		self["description"] = StaticText()
 		self["vtitle"] = Label()
@@ -256,7 +257,6 @@ class PlutoTV(Screen):
 		self.menu = []
 		self.history = []
 		self.chapters = {}
-		self.titlemenu = _("Menu")
 
 		sc = AVSwitch().getFramebufferScale()
 		self.picload = ePicLoad()
@@ -369,7 +369,7 @@ class PlutoTV(Screen):
 		self.menuitems = int(ondemand.get("totalCategories", "0"))
 		categories = ondemand.get("categories", [])
 		if not categories:
-			self.session.openWithCallback(self.exit, MessageBox, _("There is no data, it is possible that Pluto TV is not available in your Country"), type=MessageBox.TYPE_ERROR, timeout=10)
+			self.session.openWithCallback(self.exit, MessageBox, _("There is no data, it is possible that Pluto TV is not available in your country"), type=MessageBox.TYPE_ERROR, timeout=10)
 		else:
 			[self.buildlist(category) for category in categories]
 			list = []
@@ -674,6 +674,7 @@ class Pluto_Player(MoviePlayer):
 def autostart(reason, session):
 	PlutoDownload.Silent.init(session)
 
+
 def Download_PlutoTV(session, **kwargs):
 	session.open(PlutoDownload.PlutoDownload)
 
@@ -683,8 +684,8 @@ def system(session, **kwargs):
 
 
 def Plugins(**kwargs):
-	list = []
-	list.append(PluginDescriptor(name=_("PlutoTV"), where = PluginDescriptor.WHERE_PLUGINMENU, icon="plutotv.png", description=_("View Pluto TV VOD & Download Bouquet for LiveTV Channels"), fnc=system, needsRestart=True))
-	list.append(PluginDescriptor(name=_("Download PlutoTV Bouquet, picons & EPG"), where = PluginDescriptor.WHERE_EXTENSIONSMENU, fnc=Download_PlutoTV, needsRestart=True))
-	list.append(PluginDescriptor(name=_("Silent Download PlutoTV"), where = PluginDescriptor.WHERE_SESSIONSTART, fnc=autostart)) 
-	return list
+	return [
+		PluginDescriptor(name=_("PlutoTV"), where = PluginDescriptor.WHERE_PLUGINMENU, icon="plutotv.png", description=_("View video on demand and download a bouquet of live tv channels"), fnc=system, needsRestart=True),
+		PluginDescriptor(name=_("Download PlutoTV bouquet, picons and EPG"), where = PluginDescriptor.WHERE_EXTENSIONSMENU, fnc=Download_PlutoTV, needsRestart=True),
+		PluginDescriptor(name=_("Silently download PlutoTV"), where = PluginDescriptor.WHERE_SESSIONSTART, fnc=autostart),
+	]
