@@ -161,36 +161,42 @@ class DownloadPosters:
 
 class PlutoList(MenuList):
 	def __init__(self, list):
+		self.menu_png = LoadPixmap(x if fileExists(x := resolveFilename(SCOPE_CURRENT_SKIN, "icons/pluto_menu.png")) else f"{PLUGIN_FOLDER}/images/menu.png")
+		self.series_png = LoadPixmap(x if fileExists(x := resolveFilename(SCOPE_CURRENT_SKIN, "icons/pluto_series.png")) else f"{PLUGIN_FOLDER}/images/series.png")
+		self.cine_png = LoadPixmap(x if fileExists(x := resolveFilename(SCOPE_CURRENT_SKIN, "icons/pluto_cine.png")) else f"{PLUGIN_FOLDER}/images/cine.png")
+		self.cine_half_png = LoadPixmap(x if fileExists(x := resolveFilename(SCOPE_CURRENT_SKIN, "icons/pluto_cine_half.png")) else f"{PLUGIN_FOLDER}/images/cine_half.png")
+		self.cine_end_png = LoadPixmap(x if fileExists(x := resolveFilename(SCOPE_CURRENT_SKIN, "icons/pluto_cine_end.png")) else f"{PLUGIN_FOLDER}/images/cine_end.png")
+		
 		MenuList.__init__(self, list, content=eListboxPythonMultiContent)
 		font = fonts.get("PlutoList", applySkinFactor("Regular", 19, 35))
 		self.l.setFont(0, gFont(font[0], font[1]))
 		self.l.setItemHeight(font[2])
 
-def listentry(name, data, _id, epid=0):
-	res = [(name,data,_id,epid)]
+	def listentry(self, name, data, _id, epid=0):
+		res = [(name,data,_id,epid)]
 
-	if data == "menu":
-		picture = f"{PLUGIN_FOLDER}/images/menu.png"
-	elif data in ("series", "seasons"):
-		picture = f"{PLUGIN_FOLDER}/images/series.png"
-	elif data in ("movie", "episode"):
-		picture = f"{PLUGIN_FOLDER}/images/cine.png"
-		if data == "episode":
-			sid = epid
-		else:
-			sid = _id
-		last, length = resumePointsInstance.getResumePoint(sid)
-		if last:
-			if (last > 900000) and (not length  or (last < length - 900000)):
-				picture = f"{PLUGIN_FOLDER}/images/cine_half.png"
-			elif last >= length - 900000:
-				picture = f"{PLUGIN_FOLDER}/images/cine_end.png"
-
-	res.append(MultiContentEntryText(pos=applySkinFactor(45, 7), size=applySkinFactor(533, 35), font=0, text=name))
-	if picture is not None and fileExists(picture):
-		png = LoadPixmap(picture)
-		res.append(MultiContentEntryPixmapAlphaBlend(pos=applySkinFactor(7, 9), size=applySkinFactor(20, 20), png=png, flags = BT_SCALE | BT_KEEP_ASPECT_RATIO))
-	return res
+		png = None
+		if data == "menu":
+			png = self.menu_png
+		elif data in ("series", "seasons"):
+			png = self.series_png
+		elif data in ("movie", "episode"):
+			png = self.cine_png
+			if data == "episode":
+				sid = epid
+			else:
+				sid = _id
+			last, length = resumePointsInstance.getResumePoint(sid)
+			if last:
+				if self.cine_half_png and (last > 900000) and (not length  or (last < length - 900000)):
+					png = self.cine_half_png
+				elif self.cine_end_png and last >= length - 900000:
+					png = self.cine_end_png
+	
+		res.append(MultiContentEntryText(pos=applySkinFactor(45, 7), size=applySkinFactor(533, 35), font=0, text=name))
+		if png:
+			res.append(MultiContentEntryPixmapAlphaBlend(pos=applySkinFactor(7, 9), size=applySkinFactor(20, 20), png=png, flags=BT_SCALE | BT_KEEP_ASPECT_RATIO))
+		return res
 
 
 class PlutoTV(Screen):
@@ -368,7 +374,7 @@ class PlutoTV(Screen):
 			[self.buildlist(category) for category in categories]
 			list = []
 			for key in self.menu:
-				list.append(listentry(key.decode('utf-8'),"menu",""))
+				list.append(self['feedlist'].listentry(key.decode('utf-8'),"menu",""))
 			self["feedlist"].setList(list)
 			self["loading"].hide()
 
@@ -457,7 +463,7 @@ class PlutoTV(Screen):
 				sname = x[1].decode('utf-8')
 				stype = x[8]
 				sid = x[0]
-				menu.append(listentry(sname, stype, sid))
+				menu.append(self['feedlist'].listentry(sname, stype, sid))
 			self["feedlist"].moveToIndex(0)
 			self["feedlist"].setList(menu)
 			self.titlemenu = name
@@ -473,7 +479,7 @@ class PlutoTV(Screen):
 				sname = key
 				stype = "seasons"
 				sid = key
-				menu.append(listentry(_("Season") + " " + sname, stype, sid))
+				menu.append(self['feedlist'].listentry(_("Season") + " " + sname, stype, sid))
 			self["feedlist"].setList(menu)
 			self.titlemenu = name + " - " + _("Seasons")
 			self["playlist"].setText(self.titlemenu)
@@ -484,7 +490,7 @@ class PlutoTV(Screen):
 				sname = key[1].decode('utf-8')
 				stype = "episode"
 				sid = key[0]
-				menu.append(listentry(_("Episode") + " " + key[2] + ". " + sname, stype, _id,key[0]))
+				menu.append(self['feedlist'].listentry(_("Episode") + " " + key[2] + ". " + sname, stype, _id,key[0]))
 			self["feedlist"].setList(menu)
 			self.titlemenu = menuact.split(" - ")[0] + " - " + name
 			self["playlist"].setText(self.titlemenu)
@@ -514,7 +520,7 @@ class PlutoTV(Screen):
 			histname = self.history[-1][1]
 			if __type in ("movie", "series"):
 				for key in self.menu:
-					menu.append(listentry(key.decode('utf-8'), 'menu', ''))
+					menu.append(self['feedlist'].listentry(key.decode('utf-8'), 'menu', ''))
 				self["help"].hide()
 				self['description'].setText("")
 				self['vtitle'].hide()
@@ -524,13 +530,13 @@ class PlutoTV(Screen):
 					sname = x[1].decode('utf-8')
 					stype = x[8]
 					sid = x[0]
-					menu.append(listentry(sname, stype, sid))
+					menu.append(self['feedlist'].listentry(sname, stype, sid))
 			if __type == "episode":
 				for key in list(self.chapters.keys()):
 					sname = str(key)
 					stype = "seasons"
 					sid = str(key)
-					menu.append(listentry(_("Season") + " " + sname, stype, sid))
+					menu.append(self['feedlist'].listentry(_("Season") + " " + sname, stype, sid))
 			self["feedlist"].setList(menu)
 			self.history.pop()
 			self["feedlist"].moveToIndex(hist)
@@ -563,7 +569,7 @@ class PlutoTV(Screen):
 	def returnplayer(self):
 		menu = []
 		for l in self["feedlist"].list:
-			menu.append(listentry(l[0][0],l[0][1],l[0][2],l[0][3]))
+			menu.append(self['feedlist'].listentry(l[0][0],l[0][1],l[0][2],l[0][3]))
 		self["feedlist"].setList(menu)
 
 	def updatebutton(self,ret=None):
