@@ -174,7 +174,8 @@ def getURL(url, param=None, header={"User-agent": "Mozilla/5.0 (Windows NT 6.2; 
 	if url in RequestCache and RequestCache[url][1] > (now - life):
 		return RequestCache[url][0]
 	try:
-		req = requests.get(url, param, headers=header)
+		req = requests.get(url, param, headers=header, timeout=2)
+		req.raise_for_status()
 		response = req.json()
 		req.close()
 		RequestCache[url] = (response, now)
