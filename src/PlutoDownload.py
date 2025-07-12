@@ -567,10 +567,10 @@ class DownloadSilent:
 		minutes = 60 * 5
 		if fileExists(TIMER_FILE):
 			last = float(open(TIMER_FILE, "r").read().replace("\n", "").replace("\r", ""))
-			minutes = minutes - int((time.time() - last) / 60)
+			minutes -= int((time.time() - last) / 60)
 			if minutes < 0:
-				minutes = 1
-		self.timer.start(minutes * 60000, False)
+				minutes = 1  # do we want to do this so close to reboot
+		self.timer.startLongTimer(minutes * 60)
 
 	def stop(self):
 		self.timer.stop()
