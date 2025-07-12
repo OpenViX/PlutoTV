@@ -208,7 +208,7 @@ class PlutoTV(Screen):
 			<convert type="ClockToText">Format:%H:%M</convert>
 		</widget>
 		<widget name="loading" position="560,440" size="800,200" font="Regular; 60" backgroundColor="#00000000" transparent="0" zPosition="10" halign="center" valign="center" />
-		<widget name="playlist" render="FixedLabel" position="400,48" size="1150,55" font="Regular; 40" backgroundColor="#00000000" transparent="1" foregroundColor="#00ffff00" zPosition="2" halign="center" />
+		<widget name="playlist" position="400,48" size="1150,55" font="Regular; 40" backgroundColor="#00000000" transparent="1" foregroundColor="#00ffff00" zPosition="2" halign="center" />
 		<widget name="feedlist" position="70,170" size="615,728" scrollbarMode="showOnDemand" enableWrapAround="1" transparent="1" zPosition="5" foregroundColor="#00ffffff" backgroundColorSelected="#00ff0063" backgroundColor="#00000000" />
 		<widget name="poster" position="772,235" size="483,675" zPosition="3" alphatest="blend" />
 		<widget source="description" position="1282,270" size="517,347" render="RunningText" options="movetype=swimming,startpoint=0,direction=top,steptime=140,repeat=5,always=0,startdelay=8000,wrap" font="Regular; 28" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="0" valign="top" />
