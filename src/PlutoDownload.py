@@ -99,7 +99,7 @@ class DownloadComponent:
 		rute = "wget"
 		picon_path = getPiconPath()
 		os.makedirs(picon_path, exist_ok=True)  # create folder if not exists
-		filename = os.path.join(picon_path, self.ref.replace(":","_") + ".png")
+		filename = os.path.join(picon_path, self.ref.replace(":", "_") + ".png")
 		if filename:
 			rute = rute + " -O " + filename
 			self.filename = filename
@@ -128,7 +128,7 @@ class DownloadComponent:
 		self.callCallbacks(self.EVENT_DONE, self.number, self.ref, self.name)
 		self.cmd.appClosed.remove(self.cmdFinished)
 
-	def callCallbacks(self, event, param = None, ref = None, name = None):
+	def callCallbacks(self, event, param=None, ref=None, name=None):
 		for callback in self.callbackList:
 			callback(event, param, ref, name)
 
@@ -159,7 +159,7 @@ def getClips(epid):
 	return getURL(BASE_CLIPS % (epid), header=buildHeader(), life=60 * 60)
 
 def getVOD(epid):
-	return getURL(SEASON_VOD % (epid,"sid=%s&deviceId=%s"%(getUUID())), header=buildHeader(), life=60 * 60)
+	return getURL(SEASON_VOD % (epid, "sid=%s&deviceId=%s"%(getUUID())), header=buildHeader(), life=60 * 60)
 
 def getOndemand():
 	return getURL(BASE_VOD % ("sid=%s&deviceId=%s"%(getUUID())), header=buildHeader(), life=60 * 60)
@@ -191,24 +191,24 @@ def getGuidedata(full=False):
 	stop = (datetime.datetime.fromtimestamp(getLocalTime()) + datetime.timedelta(hours=24)).strftime("%Y-%m-%dT%H:00:00Z")
 
 	if full:
-		return getURL(GUIDE_URL %(start,stop,"sid=%s&deviceId=%s"%(getUUID())), life=60 * 60)
+		return getURL(GUIDE_URL %(start, stop, "sid=%s&deviceId=%s"%(getUUID())), life=60 * 60)
 	else:
-		return sorted((getURL(BASE_GUIDE %(start,stop,"sid=%s&deviceId=%s"%(getUUID())), life=60 * 60)), key=sort)
+		return sorted((getURL(BASE_GUIDE %(start, stop, "sid=%s&deviceId=%s"%(getUUID())), life=60 * 60)), key=sort)
 
 def buildM3U(channel):
-	#(number,_id,name,logo,url)
-	logo  = (channel.get("logo",{}).get("path", None) or None)
-	logo = (channel.get("solidLogoPNG",{}).get("path", None) or None) #blancos
-	logo = (channel.get("colorLogoPNG",{}).get("path", None) or None)
-	group = channel.get("category","")
+	#(number, _id, name, logo, url)
+	logo  = (channel.get("logo", {}).get("path", None) or None)
+	logo = (channel.get("solidLogoPNG", {}).get("path", None) or None) #blancos
+	logo = (channel.get("colorLogoPNG", {}).get("path", None) or None)
+	group = channel.get("category", "")
 	_id = channel["_id"]
 
-	urls  = channel.get("stitched",{}).get("urls", [])
+	urls  = channel.get("stitched", {}).get("urls", [])
 	if len(urls) == 0: 
 		return False
 
 	if isinstance(urls, list):
-		urls = [url["url"].replace("deviceType=&","deviceType=web&").replace("deviceMake=&","deviceMake=Chrome&").replace("deviceModel=&","deviceModel=Chrome&").replace("appName=&","appName=web&") for url in urls if url["type"].lower() == "hls"][0] # todo select quality
+		urls = [url["url"].replace("deviceType=&", "deviceType=web&").replace("deviceMake=&", "deviceMake=Chrome&").replace("deviceModel=&", "deviceModel=Chrome&").replace("appName=&", "appName=web&") for url in urls if url["type"].lower() == "hls"][0] # todo select quality
 
 	if group not in list(ChannelsList.keys()):
 		ChannelsList[group] = []
@@ -230,7 +230,7 @@ def buildService():
 		bqt.write("#SERVICE 1:64:%s:0:0:0:0:0:0:0::%s\n#DESCRIPTION %s\n" % (tid, key, key))
 		tid = tid + 1
 		for channel in ChannelsList[key]:
-			bqt.write("#SERVICE 4097:0:1:%s:0:0:0:0:0:0:%s:%s\n#DESCRIPTION %s\n" % (channel[0],quote(channel[4]), channel[2], channel[2]))
+			bqt.write("#SERVICE 4097:0:1:%s:0:0:0:0:0:0:%s:%s\n#DESCRIPTION %s\n" % (channel[0], quote(channel[4]), channel[2], channel[2]))
 	bqt.close()
 	bouquets = open("/etc/enigma2/bouquets.tv", "r").read()
 	if not BOUQUET in bouquets:
@@ -285,21 +285,21 @@ def convertgenre(genre):
 	return id
 
 def buildepg(data):
-	#(title,summary,start,duration,genre)
+	#(title, summary, start, duration, genre)
 	event, name, opt = data
 	_id = event.get("_id", "")
 	if len(_id) == 0:
 		return
 	GuideList[_id] = []
-	timelines = event.get("timelines",[])
+	timelines = event.get("timelines", [])
 	chplot = (event.get("description", "") or event.get("summary", ""))
 
 	for item in timelines:
-		episode    = (item.get("episode",{})   or item)
-		series     = (episode.get("series",{}) or item)
-		epdur      = int(episode.get("duration","0") or "0") // 1000 # in seconds
-		epgenre    = episode.get("genre","")
-		etype      = series.get("type","film")
+		episode    = (item.get("episode", {})   or item)
+		series     = (episode.get("series", {}) or item)
+		epdur      = int(episode.get("duration", "0") or "0") // 1000 # in seconds
+		epgenre    = episode.get("genre", "")
+		etype      = series.get("type", "film")
 
 		genre = convertgenre(epgenre)
 
@@ -309,12 +309,12 @@ def buildepg(data):
 		except:
 			return
 		start = time.mktime(starttime.timetuple())
-		title      = (item.get("title",""))
+		title      = (item.get("title", ""))
 		tvplot     = (series.get("description", "") or series.get("summary", "") or chplot)
 		epnumber   = episode.get("number", 0)
 		epseason   = episode.get("season", 0)
 		epname     = (episode["name"])
-		epmpaa     = episode.get("rating","")
+		epmpaa     = episode.get("rating", "")
 		epplot     = (episode.get("description", "") or tvplot or epname)
 
 		if len(epmpaa) > 0 and not "Not Rated" in epmpaa:
@@ -326,11 +326,11 @@ def buildepg(data):
 			epplot = "T%d Ep.%d %s" % (epseason, epnumber, epplot)
 
 		if epdur > 0:
-			GuideList[_id].append((title,epplot,start,epdur,genre))
+			GuideList[_id].append((title, epplot, start, epdur, genre))
 
 def buildGuide(event):
-	#(title,summary,start,duration,genre)
-	_id = event.get("_id","")
+	#(title, summary, start, duration, genre)
+	_id = event.get("_id", "")
 	if len(_id) == 0:
 		return
 	GuideList[_id] = []
@@ -370,24 +370,24 @@ def buildGuide(event):
 			epplot = "T%d Ep.%d %s" % (epseason, epnumber, epplot)
 
 		if epdur > 0:
-			GuideList[_id].append((title,epplot,start,epdur,genre))
+			GuideList[_id].append((title, epplot, start, epdur, genre))
 
 def getCategories():
-	# categories = sorted(self.getGuidedata(full=True).get("categories",[]), key=lambda k: k["order"])
+	# categories = sorted(self.getGuidedata(full=True).get("categories", []), key=lambda k: k["order"])
 	# for category in categories: 
-	# yield (category["name"], "categories", 0, False, {"thumb":category.get("images",[{}])[0].get("url",ICON),"fanart":category.get("images",[{},{}])[1].get("url",FANART)})
+	# yield (category["name"], "categories", 0, False, {"thumb":category.get("images", [{}])[0].get("url", ICON), "fanart":category.get("images", [{}, {}])[1].get("url", FANART)})
 
 	collect= []
 	data = getChannels()
 	for channel in data: collect.append(channel["category"])
 	counter = collections.Counter(collect)
-	categories = sorted(self.getGuidedata(full=True).get("categories",[]), key=lambda k: k["order"])
+	categories = sorted(self.getGuidedata(full=True).get("categories", []), key=lambda k: k["order"])
 	for key, value in sorted(counter.items()): 
 		category = {}
 		for category in categories:
 			if category["name"].lower() == key.lower():
 				break
-		yield (key,"categories", 0, False, {"thumb":category.get("images",[{}])[0].get("url",ICON),"fanart":category.get("images",[{},{}])[1].get("url",FANART)})
+		yield (key, "categories", 0, False, {"thumb":category.get("images", [{}])[0].get("url", ICON), "fanart":category.get("images", [{}, {}])[1].get("url", FANART)})
 
 
 class PlutoDownload(Screen):
@@ -488,12 +488,12 @@ class PlutoDownload(Screen):
 
 
 						if self.chitem == 0:
-							self.fd.write("#SERVICE 1:64:%s:0:0:0:0:0:0:0::%s\n#DESCRIPTION %s\n" % (self.key,Categories[self.key],Categories[self.key]))
+							self.fd.write("#SERVICE 1:64:%s:0:0:0:0:0:0:0::%s\n#DESCRIPTION %s\n" % (self.key, Categories[self.key], Categories[self.key]))
 
 
 						channel = ChannelsList[key][self.chitem]
-						sref = "#SERVICE 4097:0:1:%s:0:0:0:0:0:0:%s:%s" % (channel[0],quote(channel[4]),channel[2])
-						self.fd.write("%s\n#DESCRIPTION %s\n" % (sref,channel[2]))
+						sref = "#SERVICE 4097:0:1:%s:0:0:0:0:0:0:%s:%s" % (channel[0], quote(channel[4]), channel[2])
+						self.fd.write("%s\n#DESCRIPTION %s\n" % (sref, channel[2]))
 						self.chitem = self.chitem + 1
 
 						ref = "4097:0:1:%s:0:0:0:0:0:0" % channel[0]
@@ -509,11 +509,11 @@ class PlutoDownload(Screen):
 								duration = evt[3]
 								genre = evt[4]
 
-								chevents.append((begin,duration,title,"",summary,genre))
+								chevents.append((begin, duration, title, "", summary, genre))
 						if len(chevents) > 0:
 							iterator = iter(chevents)
 							events_tuple = tuple(iterator)
-							self.epgcache.importEvents(ref + ":https%3a//.m3u8",events_tuple)
+							self.epgcache.importEvents(ref + ":https%3a//.m3u8", events_tuple)
 
 
 						logo = channel[3]
@@ -543,7 +543,7 @@ class PlutoDownload(Screen):
 			stri = _("The download is in progress. Exit now?")
 			self.session.openWithCallback(self.salirok, MessageBox, stri, MessageBox.TYPE_YESNO, timeout = 30)
 			
-	def salirok(self,answer=True):
+	def salirok(self, answer=True):
 		if answer:
 			Silent.stop()
 			Silent.start()
@@ -631,12 +631,12 @@ class DownloadSilent:
 
 
 						if self.chitem == 0:
-							self.fd.write("#SERVICE 1:64:%s:0:0:0:0:0:0:0::%s\n#DESCRIPTION %s\n" % (self.key,Categories[self.key],Categories[self.key]))
+							self.fd.write("#SERVICE 1:64:%s:0:0:0:0:0:0:0::%s\n#DESCRIPTION %s\n" % (self.key, Categories[self.key], Categories[self.key]))
 
 
 						channel = ChannelsList[key][self.chitem]
-						sref = "#SERVICE 4097:0:1:%s:0:0:0:0:0:0:%s:%s" % (channel[0],quote(channel[4]),channel[2])
-						self.fd.write("%s\n#DESCRIPTION %s\n" % (sref,channel[2]))
+						sref = "#SERVICE 4097:0:1:%s:0:0:0:0:0:0:%s:%s" % (channel[0], quote(channel[4]), channel[2])
+						self.fd.write("%s\n#DESCRIPTION %s\n" % (sref, channel[2]))
 						self.chitem = self.chitem + 1
 
 						ref = "4097:0:1:%s:0:0:0:0:0:0" % channel[0]
@@ -652,11 +652,11 @@ class DownloadSilent:
 								duration = evt[3]
 								genre = evt[4]
 
-								chevents.append((begin,duration,title,"",summary,genre))
+								chevents.append((begin, duration, title, "", summary, genre))
 						if len(chevents)>0:
 							iterator = iter(chevents)
 							events_tuple = tuple(iterator)
-							self.epgcache.importEvents(ref+":https%3a//.m3u8",events_tuple)
+							self.epgcache.importEvents(ref+":https%3a//.m3u8", events_tuple)
 
 
 						logo = channel[3]

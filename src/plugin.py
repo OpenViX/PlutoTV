@@ -173,7 +173,7 @@ class PlutoList(MenuList):
 		self.l.setItemHeight(font[2])
 
 	def listentry(self, name, data, _id, epid=0):
-		res = [(name,data,_id,epid)]
+		res = [(name, data, _id, epid)]
 
 		png = None
 		if data == "menu":
@@ -282,7 +282,7 @@ class PlutoTV(Screen):
 		self.TimerTemp.callback.append(self.getCategories)
 		self.TimerTemp.startLongTimer(1)
 
-	def showback(self, picInfo = None):
+	def showback(self, picInfo=None):
 		try:
 			ptr = self.picload.getData()
 			if ptr != None:
@@ -335,10 +335,10 @@ class PlutoTV(Screen):
 		if __type == "poster" and filename:
 			self.decodePoster(filename)
 
-	def decodePoster(self,image):
+	def decodePoster(self, image):
 		try:
 			x, y = self["poster"].getSize()
-			picture = image.replace("\n","").replace("\r","")
+			picture = image.replace("\n", "").replace("\r", "")
 			sc = AVSwitch().getFramebufferScale()
 			self.picload.setPara((x,
 			 y,
@@ -366,15 +366,15 @@ class PlutoTV(Screen):
 	def getCategories(self):
 		self.lvod = {}
 		ondemand = PlutoDownload.getOndemand()
-		self.menuitems = int(ondemand.get("totalCategories","0"))
-		categories = ondemand.get("categories",[])
+		self.menuitems = int(ondemand.get("totalCategories", "0"))
+		categories = ondemand.get("categories", [])
 		if not categories:
 			self.session.openWithCallback(self.exit, MessageBox, _("There is no data, it is possible that Pluto TV is not available in your Country"), type=MessageBox.TYPE_ERROR, timeout=10)
 		else:
 			[self.buildlist(category) for category in categories]
 			list = []
 			for key in self.menu:
-				list.append(self["feedlist"].listentry(key.decode("utf-8"),"menu",""))
+				list.append(self["feedlist"].listentry(key.decode("utf-8"), "menu", ""))
 			self["feedlist"].setList(list)
 			self["loading"].hide()
 
@@ -383,68 +383,68 @@ class PlutoTV(Screen):
 		self.lvod[name]=[]
 
 		self.menu.append(name)
-		items = category.get("items",[])
+		items = category.get("items", [])
 		for item in items:
-			#film = (_id,name,summary,genre,rating,duration,poster,image,type)
-			itemid = item.get("_id","")
+			#film = (_id, name, summary, genre, rating, duration, poster, image, type)
+			itemid = item.get("_id", "")
 			if len(itemid) == 0:
 				continue
 			film = {}
-			itemname = item.get("name","").encode("utf-8")
-			itemsummary = item.get("summary","").encode("utf-8")
-			itemgenre = item.get("genre","").encode("utf-8")
-			itemrating = item.get("rating","").encode("utf-8")
-			itemduration = int(item.get("duration","0") or "0") // 1000 #in seconds
-			itemimgs = item.get("covers",[])
-			itemtype = item.get("type","")
-			seasons = len(item.get("seasonsNumbers",[]))
+			itemname = item.get("name", "").encode("utf-8")
+			itemsummary = item.get("summary", "").encode("utf-8")
+			itemgenre = item.get("genre", "").encode("utf-8")
+			itemrating = item.get("rating", "").encode("utf-8")
+			itemduration = int(item.get("duration", "0") or "0") // 1000 #in seconds
+			itemimgs = item.get("covers", [])
+			itemtype = item.get("type", "")
+			seasons = len(item.get("seasonsNumbers", []))
 			itemimage = ""
 			itemposter = ""
-			urls = item.get("stitched",{}).get("urls",[])
+			urls = item.get("stitched", {}).get("urls", [])
 			if len(urls)>0:
-				url = urls[0].get("url","")
+				url = urls[0].get("url", "")
 			else:
 				url = ""
 
 			if len(itemimgs)>2:
-				itemimage = itemimgs[2].get("url","")
+				itemimage = itemimgs[2].get("url", "")
 			if len(itemimgs)>1 and len(itemimage) == 0:
-				itemimage = itemimgs[1].get("url","")
+				itemimage = itemimgs[1].get("url", "")
 			if len(itemimgs)>0:
-				itemposter = itemimgs[0].get("url","")
-			self.lvod[name].append((itemid, itemname, itemsummary, itemgenre, itemrating, itemduration, itemposter,itemimage, itemtype, url, seasons))
+				itemposter = itemimgs[0].get("url", "")
+			self.lvod[name].append((itemid, itemname, itemsummary, itemgenre, itemrating, itemduration, itemposter, itemimage, itemtype, url, seasons))
 
-	def buildchapters(self,chapters):
+	def buildchapters(self, chapters):
 		self.chapters.clear()
-		items = chapters.get("seasons",[])
+		items = chapters.get("seasons", [])
 		for item in items:
-				chs = item.get("episodes",[])
+				chs = item.get("episodes", [])
 				for ch in chs:
-					season = str(ch.get("season",0))
+					season = str(ch.get("season", 0))
 					if season != "0":
 						if season not in self.chapters:
 							self.chapters[season] = []
-						_id = ch.get("_id","")
-						name = ch.get("name","").encode("utf-8")
-						number = str(ch.get("number",0))
-						summary = ch.get("description","").encode("utf-8")
-						rating = ch.get("rating","")
-						duration = ch.get("duration",0) // 1000
-						genre = ch.get("genre","").encode("utf-8")
-						imgs = ch.get("covers",[])
-						urls = ch.get("stitched",{}).get("urls",[])
+						_id = ch.get("_id", "")
+						name = ch.get("name", "").encode("utf-8")
+						number = str(ch.get("number", 0))
+						summary = ch.get("description", "").encode("utf-8")
+						rating = ch.get("rating", "")
+						duration = ch.get("duration", 0) // 1000
+						genre = ch.get("genre", "").encode("utf-8")
+						imgs = ch.get("covers", [])
+						urls = ch.get("stitched", {}).get("urls", [])
 						if len(urls)>0:
-							url = urls[0].get("url","")
+							url = urls[0].get("url", "")
 
 						itemimage = ""
 						itemposter = ""
 						if len(imgs)>2:
-							itemimage = imgs[2].get("url","")
+							itemimage = imgs[2].get("url", "")
 						if len(imgs)>1 and len(itemimage) == 0:
-							itemimage = imgs[1].get("url","")
+							itemimage = imgs[1].get("url", "")
 						if len(imgs)>0:
-							itemposter = imgs[0].get("url","")
-						self.chapters[season].append((_id,name,number,summary,rating,duration,genre,itemposter,itemimage,url))
+							itemposter = imgs[0].get("url", "")
+						self.chapters[season].append((_id, name, number, summary, rating, duration, genre, itemposter, itemimage, url))
 
 
 	def getSelection(self):
@@ -468,7 +468,7 @@ class PlutoTV(Screen):
 			self["feedlist"].setList(menu)
 			self.titlemenu = name
 			self["playlist"].setText(self.titlemenu)
-			self.history.append((index,menuact))
+			self.history.append((index, menuact))
 			self["vtitle"].show()
 			self["vinfo"].show()
 			self["help"].show()
@@ -483,18 +483,18 @@ class PlutoTV(Screen):
 			self["feedlist"].setList(menu)
 			self.titlemenu = name + " - " + _("Seasons")
 			self["playlist"].setText(self.titlemenu)
-			self.history.append((index,menuact))
+			self.history.append((index, menuact))
 			self["feedlist"].moveToIndex(0)			
 		if __type == "seasons":
 			for key in self.chapters[_id]:
 				sname = key[1].decode("utf-8")
 				stype = "episode"
 				sid = key[0]
-				menu.append(self["feedlist"].listentry(_("Episode") + " " + key[2] + ". " + sname, stype, _id,key[0]))
+				menu.append(self["feedlist"].listentry(_("Episode") + " " + key[2] + ". " + sname, stype, _id, key[0]))
 			self["feedlist"].setList(menu)
 			self.titlemenu = menuact.split(" - ")[0] + " - " + name
 			self["playlist"].setText(self.titlemenu)
-			self.history.append((index,menuact))
+			self.history.append((index, menuact))
 			self["feedlist"].moveToIndex(0)
 		if __type == "movie":
 			film = self.films[index]
@@ -502,7 +502,7 @@ class PlutoTV(Screen):
 			name = film[1].decode("utf-8")
 			sessionid, deviceid = PlutoDownload.getUUID()
 			url = film[9]
-			self.playVOD(name,sid,url)
+			self.playVOD(name, sid, url)
 		if __type == "episode":
 			film = self.chapters[_id][index]
 			sid = film[0]
@@ -548,11 +548,11 @@ class PlutoTV(Screen):
 	def playVOD(self, name, id, url=None):
 #		data = PlutoDownload.getClips(id)[0]
 #		if not data: return
-#		url   = (data.get("url","") or data.get("sources",[])[0].get("file",""))
-#		url = url.replace("siloh.pluto.tv","dh7tjojp94zlv.cloudfront.net") ## Hack for siloh.pluto.tv not access - siloh.pluto.tv redirect to dh7tjojp94zlv.cloudfront.net
+#		url   = (data.get("url", "") or data.get("sources", [])[0].get("file", ""))
+#		url = url.replace("siloh.pluto.tv", "dh7tjojp94zlv.cloudfront.net") ## Hack for siloh.pluto.tv not access - siloh.pluto.tv redirect to dh7tjojp94zlv.cloudfront.net
 		if url:
 			uid, did = PlutoDownload.getUUID()
-			url = url.replace("deviceModel=","deviceModel=web").replace("deviceMake=","deviceMake=chrome") + uid
+			url = url.replace("deviceModel=", "deviceModel=web").replace("deviceMake=", "deviceMake=chrome") + uid
 			
 		if url and name:
 			string = "4097:0:0:0:0:0:0:0:0:0:%s:%s" % (quote(url), quote(name))
@@ -563,17 +563,17 @@ class PlutoTV(Screen):
 	def green(self):
 		self.session.openWithCallback(self.endupdateLive, PlutoDownload.PlutoDownload)
 
-	def endupdateLive(self,ret=None):
+	def endupdateLive(self, ret=None):
 		self.session.openWithCallback(self.updatebutton, MessageBox, _("You now have an updated favorites list with Pluto TV channels on your channel list.\n\nEverything will be updated automatically every 5 hours."), type=MessageBox.TYPE_INFO, timeout=10)
 
 	def returnplayer(self):
 		menu = []
 		for l in self["feedlist"].list:
-			menu.append(self["feedlist"].listentry(l[0][0],l[0][1],l[0][2],l[0][3]))
+			menu.append(self["feedlist"].listentry(l[0][0], l[0][1], l[0][2], l[0][3]))
 		self["feedlist"].setList(menu)
 
-	def updatebutton(self,ret=None):
-		bouquets = open("/etc/enigma2/bouquets.tv","r").read()
+	def updatebutton(self, ret=None):
+		bouquets = open("/etc/enigma2/bouquets.tv", "r").read()
 		if fileExists(TIMER_FILE) and "pluto_tv" in bouquets:
 			last = float(open(TIMER_FILE, "r").read().replace("\n", "").replace("\r", ""))
 			txt = _("Last:") + strftime(" %x %H:%M", localtime(int(last)))
@@ -649,7 +649,7 @@ class Pluto_Player(MoviePlayer):
 		last, length = resumePointsInstance.getResumePoint(self.id)
 		if last is None or seekable is None:
 			return
-		length = seekable.getLength() or (None,0)
+		length = seekable.getLength() or (None, 0)
 		print("seekable.getLength() returns:", length)
 		# Hmm, this implies we don"t resume if the length is unknown...
 		if (last > 900000) and (not length[1]  or (last < length[1] - 900000)):
