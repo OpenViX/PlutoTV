@@ -24,19 +24,25 @@
 from . import _
 from .Variables import TIMER_FILE, PLUGIN_FOLDER
 
-from Screens.Screen import Screen
 from Components.ActionMap import ActionMap
-from Components.Label import Label
-from Components.ProgressBar import ProgressBar
-from Tools.Directories import fileExists
-from Components.Pixmap import Pixmap
-
-from enigma import eDVBDB, eEPGCache, eServiceCenter, eServiceReference, eConsoleAppContainer, eTimer
-from Screens.MessageBox import MessageBox
-import os, datetime, uuid, time
-import json, collections, requests
-from urllib.parse import quote
 from Components.config import config
+from Components.Label import Label
+from Components.Pixmap import Pixmap
+from Components.ProgressBar import ProgressBar
+from Screens.MessageBox import MessageBox
+from Screens.Screen import Screen
+from Tools.Directories import fileExists
+
+from enigma import eConsoleAppContainer, eDVBDB, eEPGCache, eServiceCenter, eServiceReference, eTimer
+
+import collections
+import datetime
+import json
+import os
+import requests
+import time
+import uuid
+from urllib.parse import quote
 
 BASE_API      = 'https://api.pluto.tv'
 GUIDE_URL     = 'https://service-channels.clusters.pluto.tv/v1/guide?start=%s&stop=%s&%s'

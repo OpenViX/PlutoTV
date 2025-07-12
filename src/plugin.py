@@ -23,39 +23,35 @@
 
 # for localized messages
 from . import _
+from . import PlutoDownload
 from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, DATA_FOLDER, PLUGIN_FOLDER
 
 from skin import applySkinFactor, fonts
 
-from Screens.Screen import Screen
-from Plugins.Plugin import PluginDescriptor
 from Components.ActionMap import ActionMap
-from Components.Label import Label
-from Components.Button import Button
-from Components.Pixmap import Pixmap
 from Components.AVSwitch import AVSwitch
-from Components.Sources.StaticText import StaticText
-from Tools.Directories import fileExists, pathExists, isPluginInstalled
-
-from enigma import eServiceReference, eConsoleAppContainer, ePicLoad, eTimer, iPlayableService
-import os
-from pickle import load as pickle_load, dump as pickle_dump, HIGHEST_PROTOCOL as pickle_HIGHEST_PROTOCOL
-from urllib.parse import quote
+from Components.Button import Button
 from Components.config import config
-
-from . import PlutoDownload
-
+from Components.Label import Label
 from Components.MenuList import MenuList
 from Components.MultiContent import MultiContentEntryText, MultiContentEntryPixmapAlphaBlend
-from enigma import eListboxPythonMultiContent, gFont, BT_SCALE, BT_KEEP_ASPECT_RATIO
-from Tools.LoadPixmap import LoadPixmap
+from Components.Pixmap import Pixmap
 from Components.ServiceEventTracker import ServiceEventTracker
-from Screens.MessageBox import MessageBox
-from Tools import Notifications
-from time import time, strftime, gmtime, localtime
-
-
+from Components.Sources.StaticText import StaticText
+from Plugins.Plugin import PluginDescriptor
 from Screens.InfoBar import MoviePlayer
+from Screens.MessageBox import MessageBox
+from Screens.Screen import Screen
+from Tools.Directories import fileExists, pathExists, isPluginInstalled, resolveFilename, SCOPE_CURRENT_SKIN
+from Tools.LoadPixmap import LoadPixmap
+from Tools import Notifications
+
+from enigma import BT_KEEP_ASPECT_RATIO, BT_SCALE, eConsoleAppContainer, eListboxPythonMultiContent, ePicLoad, eServiceReference, eTimer, gFont, iPlayableService
+
+import os
+from pickle import load as pickle_load, dump as pickle_dump, HIGHEST_PROTOCOL as pickle_HIGHEST_PROTOCOL
+from time import time, strftime, gmtime, localtime
+from urllib.parse import quote
 
 
 class ResumePoints():
