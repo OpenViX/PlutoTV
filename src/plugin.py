@@ -280,7 +280,7 @@ class PlutoTV(Screen):
 
 		self.TimerTemp = eTimer()
 		self.TimerTemp.callback.append(self.getCategories)
-		self.TimerTemp.startLongTimer(1)
+		self.TimerTemp.start(10, 1)
 
 	def showback(self, picInfo=None):
 		try:
