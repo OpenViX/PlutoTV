@@ -49,7 +49,7 @@ from Tools import Notifications
 from enigma import BT_KEEP_ASPECT_RATIO, BT_SCALE, eConsoleAppContainer, eListboxPythonMultiContent, ePicLoad, eServiceReference, eTimer, gFont, iPlayableService
 
 import os
-from pickle import load as pickle_load, dump as pickle_dump, HIGHEST_PROTOCOL as pickle_HIGHEST_PROTOCOL
+from pickle import load as pickle_load, dump as pickle_dump
 from time import time, strftime, gmtime, localtime
 from urllib.parse import quote
 
@@ -72,7 +72,7 @@ class ResumePoints():
 	def saveResumePoints(self):
 		os.makedirs(os.path.dirname(self.resumePointFile), exist_ok=True)  # create config folder recursive if not exists
 		with open(self.resumePointFile, "wb") as f:
-			pickle_dump(self.resumePointCache, f, pickle_HIGHEST_PROTOCOL)
+			pickle_dump(self.resumePointCache, f, protocol=5)
 
 	def setResumePoint(self, session, sid):
 		service = session.nav.getCurrentService()
