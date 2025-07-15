@@ -42,6 +42,7 @@ from Plugins.Plugin import PluginDescriptor
 from Screens.InfoBar import MoviePlayer
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
+from Screens.Setup import Setup
 from Tools.Directories import fileExists, pathExists, isPluginInstalled, resolveFilename, SCOPE_CURRENT_SKIN
 from Tools.LoadPixmap import LoadPixmap
 from Tools import Notifications
@@ -243,6 +244,7 @@ class PlutoTV(Screen):
 		self.mdb = isPluginInstalled("tmdb") and "tmdb" or isPluginInstalled("IMDb") and "imdb"
 		self.yellowLabel = _("TMDb Search") if self.mdb else (_("IMDb Search") if self.mdb else "")
 		self["key_green"] = StaticText()
+		self["key_menu"] = StaticText(_("MENU"))
 		self["poster"] = Pixmap()
 		self["logo"] = Pixmap()
 		self["help"] = Label(_("Press back or < to go back in the menus"))
@@ -267,13 +269,14 @@ class PlutoTV(Screen):
 		self.oldService = self.session.nav.getCurrentlyPlayingServiceReference()
 		self.session.nav.stopService()
 
-		self["actions"] = ActionMap(["SetupActions", "ColorActions", "InfobarChannelSelection"],
+		self["actions"] = ActionMap(["SetupActions", "ColorActions", "InfobarChannelSelection", "MenuActions"],
 		{
 			"ok": self.action,
 			"cancel": self.exit,
 			"save": self.green,
 			"yellow": self.MDB,
 			"historyBack": self.back,
+			"menu": self.loadSetup,
 		}, -1)
 
 		self.updatebutton()
@@ -590,6 +593,35 @@ class PlutoTV(Screen):
 			else:
 				from Plugins.Extensions.IMDb.plugin import IMDB
 				self.session.open(IMDB, name, False)
+
+	def loadSetup(self):
+		self.session.openWithCallback(self.close, PlutoSetup)
+
+
+class PlutoSetup(Setup):
+	def __init__(self, session):
+		Setup.__init__(self, session)
+		self.setTitle(_("PlutoTV Setup"))
+
+	def createSetup(self):
+		configList = []
+		configList.append((_("Country"), config.plugins.plutotv.country, _("Select the country that the VoD list will be created for.")))
+		self["config"].list = configList
+
+	def keyCancel(self):
+		for x in self['config'].list:
+			x[1].cancel()
+		self.exit()
+
+	def closeRecursive(self):
+		self.keyCancel()
+
+	def keySave(self):
+		self.saveAll()
+		self.exit()
+
+	def exit(self):
+		self.session.openWithCallback(self.close, PlutoTV)
 
 
 class Pluto_Player(MoviePlayer):

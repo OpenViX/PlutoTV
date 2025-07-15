@@ -25,12 +25,13 @@ from . import _
 from .Variables import TIMER_FILE, PLUGIN_FOLDER
 
 from Components.ActionMap import ActionMap
-from Components.config import config
+from Components.config import ConfigSelection, ConfigSubsection, config
 from Components.Label import Label
 from Components.Pixmap import Pixmap
 from Components.ProgressBar import ProgressBar
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
+from Tools.CountryCodes import ISO3166
 from Tools.Directories import fileExists
 
 from enigma import eConsoleAppContainer, eDVBDB, eEPGCache, eServiceCenter, eServiceReference, eTimer
@@ -62,6 +63,47 @@ sid1_hex = str(uuid.uuid1().hex)
 deviceId1_hex = str(uuid.uuid4().hex)
 service_types_tv = "1:7:1:0:0:0:0:0:0:0:(type == 1) || (type == 17) || (type == 22) || (type == 25) || (type == 134) || (type == 195)"
 
+
+X_FORWARDS = {
+	"us": "185.236.200.172",
+#	"gb": "185.86.151.11",
+	"gb": "185.199.220.58",
+	"de": "85.214.132.117",
+	"es": "88.26.241.248",
+	"ca": "192.206.151.131",
+	"br": "177.47.27.205",
+	"mx": "200.68.128.83",
+	"fr": "176.31.84.249",
+	"at": "2.18.68.0",
+	"ch": "5.144.31.245",
+	"it": "5.133.48.0",
+	"ar": "104.103.238.0",
+	"co": "181.204.4.74",
+	"cr": "138.122.24.0",
+	"pe": "190.42.0.0",
+	"ve": "103.83.193.0",
+	"cl": "161.238.0.0",
+	"bo": "186.27.64.0",
+	"sv": "190.53.128.0",
+	"gt": "190.115.2.25",
+	"hn": "181.115.0.0",
+	"ni": "186.76.0.0",
+	"pa": "168.77.0.0",
+	"uy": "179.24.0.0",
+	"ec": "181.196.0.0",
+	"py": "177.250.0.0",
+	"do": "152.166.0.0",
+	"se": "185.39.146.168",
+	"dk": "80.63.84.58",
+	"no": "84.214.150.146",
+	"au": "144.48.37.140",
+	"fi": "85.194.236.0",
+}
+
+COUNTRY_NAMES = {cc: country[0].split("(")[0].strip() for country in sorted(ISO3166) if (cc := country[1].lower()) in X_FORWARDS}  # ISO3166 is sorted in English, sorted wil sort by locale.
+
+config.plugins.plutotv = ConfigSubsection()
+config.plugins.plutotv.country = ConfigSelection(default="local", choices=[("local", _("Local"))] + list(COUNTRY_NAMES.items()))
 
 def getPiconPath():
 	try:
@@ -153,7 +195,7 @@ def buildHeader():
 		"Referer": "http://pluto.tv/",
 		"Origin": "http://pluto.tv",
 		"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0",
-	}
+	} | ({"X-Forwarded-For": X_FORWARDS[config.plugins.plutotv.country.value]} if config.plugins.plutotv.country.value in X_FORWARDS else {})
 
 def getClips(epid):
 	return getURL(BASE_CLIPS % (epid), header=buildHeader(), life=60 * 60)
@@ -171,14 +213,17 @@ def getURL(url, param=None, header={"User-agent": "Mozilla/5.0 (Windows NT 6.2; 
 	if param is None:
 		param = {}
 	now = time.time()
-	if url in RequestCache and RequestCache[url][1] > (now - life):
-		return RequestCache[url][0]
+	region = config.plugins.plutotv.country.value
+	if not region in RequestCache:
+		RequestCache[region] = {}
+	if url in RequestCache[region] and RequestCache[region][url][1] > (now - life):
+		return RequestCache[region][url][0]
 	try:
 		req = requests.get(url, param, headers=header, timeout=2)
 		req.raise_for_status()
 		response = req.json()
 		req.close()
-		RequestCache[url] = (response, now)
+		RequestCache[region][url] = (response, now)
 		return response
 	except Exception: 
 		return {}
