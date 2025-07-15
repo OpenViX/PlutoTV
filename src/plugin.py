@@ -366,7 +366,6 @@ class PlutoTV(Screen):
 	def getCategories(self):
 		self.lvod = {}
 		ondemand = PlutoDownload.getOndemand()
-		self.menuitems = int(ondemand.get("totalCategories", "0"))
 		categories = ondemand.get("categories", [])
 		if not categories:
 			self.session.openWithCallback(self.exit, MessageBox, _("There is no data, it is possible that Pluto TV is not available in your country"), type=MessageBox.TYPE_ERROR, timeout=10)
