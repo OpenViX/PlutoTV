@@ -298,8 +298,8 @@ def addBouquet():
 	serviceHandler = eServiceCenter.getInstance()
 	mutableBouquetList = serviceHandler.list(bouquet_root).startEdit()
 	if mutableBouquetList:
-		str = "1:7:1:0:0:0:0:0:0:0:FROM BOUQUET \"" + BOUQUET + "\" ORDER BY bouquet"
-		new_bouquet_ref = eServiceReference(str)
+		sref = "1:7:1:0:0:0:0:0:0:0:FROM BOUQUET \"" + BOUQUET + "\" ORDER BY bouquet"
+		new_bouquet_ref = eServiceReference(sref)
 		if not mutableBouquetList.addService(new_bouquet_ref):
 			mutableBouquetList.flushChanges()
 			eDVBDB.getInstance().reloadBouquets()
@@ -311,8 +311,10 @@ def addBouquet():
 				print("get mutable list for new created bouquet failed")
 
 def strpTime(datestring, format="%Y-%m-%dT%H:%M:%S.%fZ"):
-	try: return datetime.datetime.strptime(datestring, format)
-	except TypeError: return datetime.datetime.fromtimestamp(time.mktime(time.strptime(datestring, format)))
+	try:
+		return datetime.datetime.strptime(datestring, format)
+	except TypeError:
+		return datetime.datetime.fromtimestamp(time.mktime(time.strptime(datestring, format)))
 
 def convertgenre(genre):
 	id = 0
