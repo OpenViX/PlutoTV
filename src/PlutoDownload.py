@@ -420,23 +420,6 @@ def buildGuide(event):
 		if epdur > 0:
 			GuideList[_id].append((title, epplot, start, epdur, genre))
 
-def getCategories():
-	# categories = sorted(self.getGuidedata(full=True).get("categories", []), key=lambda k: k["order"])
-	# for category in categories: 
-	# yield (category["name"], "categories", 0, False, {"thumb":category.get("images", [{}])[0].get("url", ICON), "fanart":category.get("images", [{}, {}])[1].get("url", FANART)})
-
-	collect= []
-	data = getChannels()
-	for channel in data: collect.append(channel["category"])
-	counter = collections.Counter(collect)
-	categories = sorted(self.getGuidedata(full=True).get("categories", []), key=lambda k: k["order"])
-	for key, value in sorted(counter.items()): 
-		category = {}
-		for category in categories:
-			if category["name"].lower() == key.lower():
-				break
-		yield (key, "categories", 0, False, {"thumb":category.get("images", [{}])[0].get("url", ICON), "fanart":category.get("images", [{}, {}])[1].get("url", FANART)})
-
 
 class PlutoDownload(Screen):
 	skin = f"""
