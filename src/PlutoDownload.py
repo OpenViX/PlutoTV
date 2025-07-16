@@ -459,9 +459,10 @@ class PlutoDownload(Screen):
 
 
 	def download(self):
-		global ChannelsList, GuideList
+		global ChannelsList, GuideList, Categories
 		ChannelsList.clear()
 		GuideList.clear()
+		Categories.clear()
 		channels = getChannels()
 		guide = getGuidedata()
 		[buildM3U(channel) for channel in channels]
@@ -606,10 +607,11 @@ class DownloadSilent:
 		self.timer.stop()
 
 	def download(self):
-		global ChannelsList, GuideList
+		global ChannelsList, GuideList, Categories
 		self.stop()
 		ChannelsList.clear()
 		GuideList.clear()
+		Categories.clear()
 		channels = getChannels()
 		guide = getGuidedata()
 		[buildM3U(channel) for channel in channels]
