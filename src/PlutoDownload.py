@@ -438,7 +438,6 @@ class PlutoDownload(Screen):
 		Screen.__init__(self, session)
 		self.iprogress = 0
 		self.total = 0
-		self.skinName = "mhwEPG"
 		self["progress"] = ProgressBar()
 		self["action"] = Label(_("EPG Download: %s Pluto TV") % args)
 		self["wait"] = Label("")
