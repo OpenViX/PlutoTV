@@ -218,9 +218,9 @@ class PlutoTV(Screen):
 		<widget name="eptitle" position="1282,627" size="517,33" font="Regular; 28" backgroundColor="#00000000" foregroundColor="#00ffff00" transparent="1" />
 		<widget source="epinfo" position="1282,667" size="517,246" render="RunningText" options="movetype=swimming,startpoint=0,direction=top,steptime=140,repeat=5,always=0,startdelay=8000,wrap" font="Regular; 28" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
 		<widget name="help" position="70,980" size="615,48" font="Regular; 25" backgroundColor="#00000000" foregroundColor="#009B9B9B" transparent="0" halign="center"/>
-		<eLabel position="770,956" size="30,85" backgroundColor="#00FF0000" />
-		<eLabel position="1100,956" size="30,85" backgroundColor="#00ffff00" />
-		<eLabel position="1430,956" size="30,85" backgroundColor="#0032cd32" /> 
+		<eLabel position="770,956" size="30,85" backgroundColor="#00FF0000" cornerRadius="7"/>
+		<eLabel position="1100,956" size="30,85" backgroundColor="#00ffff00" cornerRadius="7"/>
+		<eLabel position="1430,956" size="30,85" backgroundColor="#0032cd32" cornerRadius="7"/> 
 		<widget source="key_red" render="Label" position="810,956" size="290,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
 		<widget source="key_yellow" render="Label" position="1140,956" size="290,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
 		<widget source="key_green" render="Label" position="1470,956" size="425,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" /> 
