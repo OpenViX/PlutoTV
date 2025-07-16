@@ -237,9 +237,9 @@ def getGuidedata(full=False):
 	stop = (datetime.datetime.fromtimestamp(getLocalTime()) + datetime.timedelta(hours=24)).strftime("%Y-%m-%dT%H:00:00Z")
 
 	if full:
-		return getURL(GUIDE_URL %(start, stop, "sid=%s&deviceId=%s"%(getUUID())), life=60 * 60)
+		return getURL(GUIDE_URL %(start, stop, "sid=%s&deviceId=%s"%(getUUID())), header=buildHeader(), life=60 * 60)
 	else:
-		return sorted((getURL(BASE_GUIDE %(start, stop, "sid=%s&deviceId=%s"%(getUUID())), life=60 * 60)), key=sort)
+		return sorted((getURL(BASE_GUIDE %(start, stop, "sid=%s&deviceId=%s"%(getUUID())), header=buildHeader(), life=60 * 60)), key=sort)
 
 def buildM3U(channel):
 	#(number, _id, name, logo, url)
