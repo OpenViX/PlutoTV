@@ -223,7 +223,8 @@ class PlutoTV(Screen):
 		<eLabel position="1430,956" size="30,85" backgroundColor="#0032cd32" /> 
 		<widget source="key_red" render="Label" position="810,956" size="290,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
 		<widget source="key_yellow" render="Label" position="1140,956" size="290,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
-		<widget source="key_green" render="Label" position="1470,956" size="425,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="0" /> 
+		<widget source="key_green" render="Label" position="1470,956" size="425,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" /> 
+		<ePixmap pixmap="buttons/key_menu.png" alphatest="blend" position="70,979" size="52,38" backgroundColor="#00000000" transparent="1" zPosition="2"/> 
 		</screen>"""
 
 	def __init__(self, session):
