@@ -31,7 +31,7 @@ from skin import applySkinFactor, fonts
 from Components.ActionMap import ActionMap
 from Components.AVSwitch import AVSwitch
 from Components.Button import Button
-from Components.config import config
+from Components.config import config, ConfigYesNo
 from Components.Label import Label
 from Components.MenuList import MenuList
 from Components.MultiContent import MultiContentEntryText, MultiContentEntryPixmapAlphaBlend
@@ -53,6 +53,9 @@ import os
 from pickle import load as pickle_load, dump as pickle_dump
 from time import time, strftime, gmtime, localtime
 from urllib.parse import quote
+
+
+config.plugins.plutotv.stopservice = ConfigYesNo(default=True)
 
 
 class ResumePoints():
@@ -160,6 +163,7 @@ class DownloadPosters:
 	def removeCallback(self, callback):
 		self.callbackList.remove(callback)
 
+
 class PlutoList(MenuList):
 	def __init__(self, list):
 		self.menu_png = LoadPixmap(x if fileExists(x := resolveFilename(SCOPE_CURRENT_SKIN, "icons/pluto_menu.png")) else f"{PLUGIN_FOLDER}/images/menu.png")
@@ -266,8 +270,11 @@ class PlutoTV(Screen):
 		self.picload.PictureData.get().append(self.showback)
 		self.picload.startDecode(f"{PLUGIN_FOLDER}/images/logo.png")
 
-		self.oldService = self.session.nav.getCurrentlyPlayingServiceReference()
-		self.session.nav.stopService()
+		if config.plugins.plutotv.stopservice.value:
+			self.oldService = self.session.nav.getCurrentlyPlayingServiceReference()
+			self.session.nav.stopService()
+		else:
+			self.oldService = None
 
 		self["actions"] = ActionMap(["SetupActions", "ColorActions", "InfobarChannelSelection", "MenuActions"],
 		{
@@ -584,7 +591,8 @@ class PlutoTV(Screen):
 		if self.history:
 			self.back()
 		else:
-			self.session.nav.playService(self.oldService)
+			if self.oldService:
+				self.session.nav.playService(self.oldService)
 			self.close()
 
 	def MDB(self):
@@ -609,6 +617,7 @@ class PlutoSetup(Setup):
 	def createSetup(self):
 		configList = []
 		configList.append((_("Country"), config.plugins.plutotv.country, _("Select the country that the VoD list will be created for.")))
+		configList.append((_("Stop service"), config.plugins.plutotv.stopservice, _("Stop currently playing service when entering PlutoTV plugin.")))
 		self["config"].list = configList
 
 	def keyCancel(self):
