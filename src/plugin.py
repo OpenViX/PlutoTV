@@ -245,15 +245,14 @@ class PlutoTV(Screen):
 		self.mdb = isPluginInstalled("tmdb") and "tmdb" or isPluginInstalled("IMDb") and "imdb"
 		self.yellowLabel = _("TMDb Search") if self.mdb else (_("IMDb Search") if self.mdb else "")
 		self["key_green"] = StaticText()
+		self["updated"] = StaticText()
 		self["key_menu"] = StaticText(_("MENU"))
 		self["poster"] = Pixmap()
 		self["logo"] = Pixmap()
 		self["help"] = Label(_("Press back or < to go back in the menus"))
-
-		self["vtitle"].hide()
-		self["vinfo"].hide()
-		self["eptitle"].hide()
 		self["help"].hide()
+		self.title = _("PlutoTV") + " - " + self.titlemenu
+
 
 		self["feedlist"].onSelectionChanged.append(self.update_data)
 		self.films = []
@@ -325,15 +324,13 @@ class PlutoTV(Screen):
 				down.startCmd(picname, pic)
 
 		if __type == "seasons":
-			self["eptitle"].hide()
+			self["eptitle"].text = ""
 			self["epinfo"].setText("")
 
 		if __type == "episode":
 			film = self.chapters[_id][index]
 			self["epinfo"].setText(film[3].decode("utf-8"))
 			self["eptitle"].setText(film[1].decode("utf-8") + "  " + strftime("%Hh %Mm", gmtime(int(film[5]))))
-			self["eptitle"].show()
-
 
 	def downloadPostersCallback(self, event, filename=None, __type=None):
 		if __type == "poster" and filename:
@@ -471,9 +468,8 @@ class PlutoTV(Screen):
 			self["feedlist"].setList(menu)
 			self.titlemenu = name
 			self["playlist"].setText(self.titlemenu)
+			self.title = _("PlutoTV") + " - " + self.titlemenu
 			self.history.append((index, menuact))
-			self["vtitle"].show()
-			self["vinfo"].show()
 			self["help"].show()
 		if __type == "series":
 			chapters = PlutoDownload.getVOD(_id)
@@ -486,8 +482,9 @@ class PlutoTV(Screen):
 			self["feedlist"].setList(menu)
 			self.titlemenu = name + " - " + _("Seasons")
 			self["playlist"].setText(self.titlemenu)
+			self.title = _("PlutoTV") + " - " + self.titlemenu
 			self.history.append((index, menuact))
-			self["feedlist"].moveToIndex(0)			
+			self["feedlist"].moveToIndex(0)
 		if __type == "seasons":
 			for key in self.chapters[_id]:
 				sname = key[1].decode("utf-8")
@@ -497,6 +494,7 @@ class PlutoTV(Screen):
 			self["feedlist"].setList(menu)
 			self.titlemenu = menuact.split(" - ")[0] + " - " + name
 			self["playlist"].setText(self.titlemenu)
+			self.title = _("PlutoTV") + " - " + self.titlemenu
 			self.history.append((index, menuact))
 			self["feedlist"].moveToIndex(0)
 		if __type == "movie":
@@ -526,8 +524,8 @@ class PlutoTV(Screen):
 					menu.append(self["feedlist"].listentry(key.decode("utf-8"), "menu", ""))
 				self["help"].hide()
 				self["description"].setText("")
-				self["vtitle"].hide()
-				self["vinfo"].hide()
+				self["vtitle"].text = ""
+				self["vinfo"].text = ""
 			if __type == "seasons":
 				for x in self.films:
 					sname = x[1].decode("utf-8")
@@ -545,6 +543,7 @@ class PlutoTV(Screen):
 			self["feedlist"].moveToIndex(hist)
 			self.titlemenu = histname
 			self["playlist"].setText(self.titlemenu)
+			self.title = _("PlutoTV") + " - " + self.titlemenu
 			if not self.history:
 				self["poster"].hide()
 
@@ -573,10 +572,13 @@ class PlutoTV(Screen):
 		bouquets = open("/etc/enigma2/bouquets.tv", "r").read()
 		if fileExists(TIMER_FILE) and "pluto_tv" in bouquets:
 			last = float(open(TIMER_FILE, "r").read().replace("\n", "").replace("\r", ""))
-			txt = _("Last:") + strftime(" %x %H:%M", localtime(int(last)))
+			updated = strftime(" %x %H:%M", localtime(int(last)))
+			txt = _("Last:") + updated
 			self["key_green"].setText(_("Update LiveTV Bouquet") + "\n" + txt)
+			self["updated"].text = _("LiveTV Bouquet last updated:") + updated
 		else:
 			self["key_green"].setText(_("Create LiveTV Bouquet"))
+			self["updated"].text = ""
 
 	def exit(self, *args, **kwargs):
 		if self.history:
