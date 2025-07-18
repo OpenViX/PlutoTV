@@ -312,8 +312,8 @@ class PlutoTV(Screen):
 
 		if __type in ("movie", "series"):
 			film = self.films[index]
-			self["description"].setText(film[2].decode("utf-8"))
-			self["vtitle"].setText(film[1].decode("utf-8"))
+			self["description"].text = film[2].decode("utf-8")
+			self["vtitle"].text = film[1].decode("utf-8")
 			info = film[4].decode("utf-8") + "       "
 			self["key_yellow"].text = self.yellowLabel
 
@@ -321,7 +321,7 @@ class PlutoTV(Screen):
 				info = info + strftime("%Hh %Mm", gmtime(int(film[5])))
 			else:
 				info = info + str(film[10]) + " " + _("Seasons available")
-			self["vinfo"].setText(info)
+			self["vinfo"].text = info
 			picname = film[0] + ".jpg"
 			pic = film[6]
 			if len(picname)>5:
@@ -332,12 +332,12 @@ class PlutoTV(Screen):
 
 		if __type == "seasons":
 			self["eptitle"].text = ""
-			self["epinfo"].setText("")
+			self["epinfo"].text = ""
 
 		if __type == "episode":
 			film = self.chapters[_id][index]
-			self["epinfo"].setText(film[3].decode("utf-8"))
-			self["eptitle"].setText(film[1].decode("utf-8") + "  " + strftime("%Hh %Mm", gmtime(int(film[5]))))
+			self["epinfo"].text = film[3].decode("utf-8")
+			self["eptitle"].text = film[1].decode("utf-8") + "  " + strftime("%Hh %Mm", gmtime(int(film[5])))
 
 	def downloadPostersCallback(self, event, filename=None, __type=None):
 		if __type == "poster" and filename:
@@ -474,7 +474,7 @@ class PlutoTV(Screen):
 			self["feedlist"].moveToIndex(0)
 			self["feedlist"].setList(menu)
 			self.titlemenu = name
-			self["playlist"].setText(self.titlemenu)
+			self["playlist"].text = self.titlemenu
 			self.title = _("PlutoTV") + " - " + self.titlemenu
 			self.history.append((index, menuact))
 			self["help"].show()
@@ -488,7 +488,7 @@ class PlutoTV(Screen):
 				menu.append(self["feedlist"].listentry(_("Season") + " " + sname, stype, sid))
 			self["feedlist"].setList(menu)
 			self.titlemenu = name + " - " + _("Seasons")
-			self["playlist"].setText(self.titlemenu)
+			self["playlist"].text = self.titlemenu
 			self.title = _("PlutoTV") + " - " + self.titlemenu
 			self.history.append((index, menuact))
 			self["feedlist"].moveToIndex(0)
@@ -500,7 +500,7 @@ class PlutoTV(Screen):
 				menu.append(self["feedlist"].listentry(_("Episode") + " " + key[2] + ". " + sname, stype, _id, key[0]))
 			self["feedlist"].setList(menu)
 			self.titlemenu = menuact.split(" - ")[0] + " - " + name
-			self["playlist"].setText(self.titlemenu)
+			self["playlist"].text = self.titlemenu
 			self.title = _("PlutoTV") + " - " + self.titlemenu
 			self.history.append((index, menuact))
 			self["feedlist"].moveToIndex(0)
@@ -518,7 +518,6 @@ class PlutoTV(Screen):
 			sessionid, deviceid = PlutoDownload.getUUID()
 			url = film[9]
 			self.playVOD(name, sid, url)
-			
 
 	def back(self):
 		index, name, __type, _id = self.getSelection()
@@ -530,7 +529,7 @@ class PlutoTV(Screen):
 				for key in self.menu:
 					menu.append(self["feedlist"].listentry(key.decode("utf-8"), "menu", ""))
 				self["help"].hide()
-				self["description"].setText("")
+				self["description"].text = ""
 				self["vtitle"].text = ""
 				self["vinfo"].text = ""
 			if __type == "seasons":
@@ -549,7 +548,7 @@ class PlutoTV(Screen):
 			self.history.pop()
 			self["feedlist"].moveToIndex(hist)
 			self.titlemenu = histname
-			self["playlist"].setText(self.titlemenu)
+			self["playlist"].text = self.titlemenu
 			self.title = _("PlutoTV") + " - " + self.titlemenu
 			if not self.history:
 				self["poster"].hide()
@@ -581,10 +580,10 @@ class PlutoTV(Screen):
 			last = float(open(TIMER_FILE, "r").read().replace("\n", "").replace("\r", ""))
 			updated = strftime(" %x %H:%M", localtime(int(last)))
 			txt = _("Last:") + updated
-			self["key_green"].setText(_("Update LiveTV Bouquet") + "\n" + txt)
+			self["key_green"].text = _("Update LiveTV Bouquet") + "\n" + txt
 			self["updated"].text = _("LiveTV Bouquet last updated:") + updated
 		else:
-			self["key_green"].setText(_("Create LiveTV Bouquet"))
+			self["key_green"].text = _("Create LiveTV Bouquet")
 			self["updated"].text = ""
 
 	def exit(self, *args, **kwargs):

@@ -504,7 +504,7 @@ class PlutoDownload(Screen):
 					self.iprogress = 100
 
 				self["progress"].setValue(self.iprogress)
-				self["wait"].setText(str(self.iprogress)+" %")
+				self["wait"].text = str(self.iprogress)+" %"
 				if self.fd:
 					if param < self.total:
 						key = Categories[self.key]
@@ -529,7 +529,7 @@ class PlutoDownload(Screen):
 
 						ref = "4097:0:1:%s:0:0:0:0:0:0" % channel[0]
 						name = channel[2]
-						self["status"].setText(_("Waiting for Channel: ")+name)
+						self["status"].text = _("Waiting for Channel: ")  + name
 
 						chevents = []
 						if channel[1] in GuideList:
