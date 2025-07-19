@@ -53,12 +53,8 @@ BASE_LINEUP   = BASE_API + "/v2/channels.json?%s"
 BASE_VOD      = BASE_API + "/v3/vod/categories?includeItems=true&deviceType=web&%s"
 SEASON_VOD    = BASE_API + "/v3/vod/series/%s/seasons?includeItems=true&deviceType=web&%s"
 BASE_CLIPS    = BASE_API + "/v2/episodes/%s/clips.json"
-BOUQUET       = "userbouquet.pluto_tv.tv"
 
 RequestCache = {}
-ChannelsList = {}
-GuideList = {}
-Categories = []
 
 sid1_hex = str(uuid.uuid1().hex)
 deviceId1_hex = str(uuid.uuid4().hex)
@@ -100,7 +96,7 @@ X_FORWARDS = {
 	"fi": "85.194.236.0",
 }
 
-COUNTRY_NAMES = {cc: country[0].split("(")[0].strip() for country in sorted(ISO3166) if (cc := country[1].lower()) in X_FORWARDS}  # ISO3166 is sorted in English, sorted wil sort by locale.
+COUNTRY_NAMES = {cc: country[0].split("(")[0].strip() for country in sorted(ISO3166) if (cc := country[1].lower()) in X_FORWARDS}  # ISO3166 is sorted in English, sorted will sort by locale.
 
 config.plugins.plutotv = ConfigSubsection()
 config.plugins.plutotv.country = ConfigSelection(default="local", choices=[("local", _("Local"))] + list(COUNTRY_NAMES.items()))
@@ -181,11 +177,11 @@ class DownloadComponent:
 		self.callbackList.remove(callback)
 
 
-def sort(elem):
-	return elem["number"]
-
 def getUUID():
 	return sid1_hex, deviceId1_hex
+
+def getUUIDstr():
+	return "sid=%s&deviceId=%s" % getUUID()
 
 def buildHeader():
 	return {
@@ -197,17 +193,17 @@ def buildHeader():
 		"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0",
 	} | ({"X-Forwarded-For": X_FORWARDS[config.plugins.plutotv.country.value]} if config.plugins.plutotv.country.value in X_FORWARDS else {})
 
-def getClips(epid):
-	return getURL(BASE_CLIPS % (epid), header=buildHeader(), life=60 * 60)
+#def getClips(epid):
+#	return getURL(BASE_CLIPS % (epid), header=buildHeader(), life=60 * 60)
 
 def getVOD(epid):
-	return getURL(SEASON_VOD % (epid, "sid=%s&deviceId=%s"%(getUUID())), header=buildHeader(), life=60 * 60)
+	return getURL(SEASON_VOD % (epid, getUUIDstr()), header=buildHeader(), life=60 * 60)
 
 def getOndemand():
-	return getURL(BASE_VOD % ("sid=%s&deviceId=%s"%(getUUID())), header=buildHeader(), life=60 * 60)
+	return getURL(BASE_VOD % (getUUIDstr()), header=buildHeader(), life=60 * 60)
 
 def getChannels():
-	return sorted(getURL(BASE_LINEUP % ("sid=%s&deviceId=%s"%(getUUID())), header=buildHeader(), life=60 * 60), key=sort)
+	return sorted(getURL(BASE_LINEUP % (getUUIDstr()), header=buildHeader(), life=60 * 60), key=lambda x: x["number"])
 
 def getURL(url, param=None, header={"User-agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"}, life=60 * 15):
 	if param is None:
@@ -228,204 +224,236 @@ def getURL(url, param=None, header={"User-agent": "Mozilla/5.0 (Windows NT 6.2; 
 	except Exception: 
 		return {}
 
-def getLocalTime():
-	offset = (datetime.datetime.utcnow() - datetime.datetime.now())
-	return time.time() + offset.total_seconds()
+class PlutoDownloadBase():
+	downloadActive = False  # shared between instances
 
-def getGuidedata(full=False):
-	start = (datetime.datetime.fromtimestamp(getLocalTime()).strftime("%Y-%m-%dT%H:00:00Z"))
-	stop = (datetime.datetime.fromtimestamp(getLocalTime()) + datetime.timedelta(hours=24)).strftime("%Y-%m-%dT%H:00:00Z")
+	def __init__(self, silent=False):
+		self.bouquetfile = "userbouquet.pluto_tv.tv"
+		self.bouquetname = "Pluto TV"
+		self.channelsList = {}
+		self.guideList = {}
+		self.categories = []
+		self.bouquet = []
+		self.state = 1  # this is a hack
+		self.silent = silent
+		PlutoDownloadBase.downloadActive = False
+		self.epgcache = eEPGCache.getInstance()
+	
+	def download(self):
+		if PlutoDownloadBase.downloadActive:
+			if not self.silent:
+				res = self.session.openWithCallback(self.close, MessageBox, _("A silent download is in progress."), MessageBox.TYPE_INFO, timeout=30)
+			print("[PlutoDownload] A silent download is in progress.")
+			return
 
-	if full:
-		return getURL(GUIDE_URL %(start, stop, "sid=%s&deviceId=%s"%(getUUID())), header=buildHeader(), life=60 * 60)
-	else:
-		return sorted((getURL(BASE_GUIDE %(start, stop, "sid=%s&deviceId=%s"%(getUUID())), header=buildHeader(), life=60 * 60)), key=sort)
+		PlutoDownloadBase.downloadActive = True
+		self.stop()  # is this really necessary
+		self.channelsList.clear()  # DownloadSilent is a running instance so clear anything from previous run
+		self.guideList.clear()  # DownloadSilent is a running instance so clear anything from previous run
+		self.categories.clear()  # DownloadSilent is a running instance so clear anything from previous run
+		channels = getChannels()
+		guide = self.getGuidedata()
+		[self.buildM3U(channel) for channel in channels]
+		self.total = len(channels)
 
-def buildM3U(channel):
-	#(number, _id, name, logo, url)
-	logo  = (channel.get("logo", {}).get("path", None) or None)
-	logo = (channel.get("solidLogoPNG", {}).get("path", None) or None) #blancos
-	logo = (channel.get("colorLogoPNG", {}).get("path", None) or None)
-	group = channel.get("category", "")
-	_id = channel["_id"]
-
-	urls  = channel.get("stitched", {}).get("urls", [])
-	if len(urls) == 0: 
-		return False
-
-	if isinstance(urls, list):
-		urls = [url["url"].replace("deviceType=&", "deviceType=web&").replace("deviceMake=&", "deviceMake=Chrome&").replace("deviceModel=&", "deviceModel=Chrome&").replace("appName=&", "appName=web&") for url in urls if url["type"].lower() == "hls"][0] # todo select quality
-
-	if group not in list(ChannelsList.keys()):
-		ChannelsList[group] = []
-		Categories.append(group)
-
-	if int(channel["number"]) == 0:
-		number = _id[-4:].upper()
-	else:
-		number = channel["number"]
-
-	ChannelsList[group].append((str(number), _id, channel["name"], logo, urls))
-	return True
-
-def buildService():
-	bqt = open("/etc/enigma2/" + BOUQUET, "w")
-	bqt.write("#NAME Pluto TV\n")
-	tid = 1
-	for key in ChannelsList:
-		bqt.write("#SERVICE 1:64:%s:0:0:0:0:0:0:0::%s\n#DESCRIPTION %s\n" % (tid, key, key))
-		tid = tid + 1
-		for channel in ChannelsList[key]:
-			bqt.write("#SERVICE 4097:0:1:%s:0:0:0:0:0:0:%s:%s\n#DESCRIPTION %s\n" % (channel[0], quote(channel[4]), channel[2], channel[2]))
-	bqt.close()
-	bouquets = open("/etc/enigma2/bouquets.tv", "r").read()
-	if not BOUQUET in bouquets:
-		addBouquet()
-
-	db = eDVBDB.getInstance()
-
-	db.reloadServicelist()
-	db.reloadBouquets()
-
-	return True
-
-def addBouquet():
-	if config.usage.multibouquet.value:
-		bouquet_rootstr = "1:7:1:0:0:0:0:0:0:0:FROM BOUQUET \"bouquets.tv\" ORDER BY bouquet"
-	else:
-		bouquet_rootstr = "%s FROM BOUQUET \"userbouquet.favourites.tv\" ORDER BY bouquet" % service_types_tv
-	bouquet_root = eServiceReference(bouquet_rootstr)
-	serviceHandler = eServiceCenter.getInstance()
-	mutableBouquetList = serviceHandler.list(bouquet_root).startEdit()
-	if mutableBouquetList:
-		sref = "1:7:1:0:0:0:0:0:0:0:FROM BOUQUET \"" + BOUQUET + "\" ORDER BY bouquet"
-		new_bouquet_ref = eServiceReference(sref)
-		if not mutableBouquetList.addService(new_bouquet_ref):
-			mutableBouquetList.flushChanges()
-			eDVBDB.getInstance().reloadBouquets()
-			mutableBouquet = serviceHandler.list(new_bouquet_ref).startEdit()
-			if mutableBouquet:
-				mutableBouquet.setListName("Pluto TV")
-				mutableBouquet.flushChanges()
+		if len(self.categories) == 0:
+			self.noCategories(self)
+		else:
+			if self.categories[0] in self.channelsList:
+				self.subtotal = len(self.channelsList[self.categories[0]])
 			else:
-				print("get mutable list for new created bouquet failed")
+				self.subtotal = 0
+			self.key = 0
+			self.chitem = 0
+			[self.buildGuide(event) for event in guide]
+			self.updateprogress(event=DownloadComponent.EVENT_DONE, param=0)
+		PlutoDownloadBase.downloadActive = False
 
-def strpTime(datestring, format="%Y-%m-%dT%H:%M:%S.%fZ"):
-	try:
-		return datetime.datetime.strptime(datestring, format)
-	except TypeError:
-		return datetime.datetime.fromtimestamp(time.mktime(time.strptime(datestring, format)))
+	def updateprogress(self, event=None, param=0, ref=None, name=None):
+		if hasattr(self, "state") and self.state == 1:  # hack for exit before end
+			if event == DownloadComponent.EVENT_DONE:
+				self.updateProgressBar(param)  # GUI widget
+				if param < self.total:
+					key = self.categories[self.key]
+					if self.chitem == self.subtotal:
+						self.chitem = 0
+						found = False
+						while not found:
+							self.key = self.key + 1
+							key = self.categories[self.key]
+							found = key in self.channelsList
+						self.subtotal = len(self.channelsList[key])
 
-def convertgenre(genre):
-	id = 0
-	if genre  in ("Classics", "Romance", "Thrillers", "Horror") or "Sci-Fi" in genre or "Action" in genre:
-		id = 0x10
-	elif "News" in genre or "Educational" in genre:
-		id = 0x20
-	elif genre == "Comedy":
-		id = 0x30
-	elif "Children" in genre:
-		id = 0x50
-	elif genre == "Music":
-		id = 0x60
-	elif genre == "Documentaries":
-		id = 0xA0
-	return id
+					if self.chitem == 0:
+						self.bouquet.append("1:64:%s:0:0:0:0:0:0:0::%s" % (self.key, self.categories[self.key]))
 
-def buildepg(data):
-	#(title, summary, start, duration, genre)
-	event, name, opt = data
-	_id = event.get("_id", "")
-	if len(_id) == 0:
-		return
-	GuideList[_id] = []
-	timelines = event.get("timelines", [])
-	chplot = (event.get("description", "") or event.get("summary", ""))
+					channel = self.channelsList[key][self.chitem]
+					self.bouquet.append("4097:0:1:%s:0:0:0:0:0:0:%s:%s" % (channel[0], quote(channel[4]), channel[2]))
+					self.chitem = self.chitem + 1
 
-	for item in timelines:
-		episode    = (item.get("episode", {})   or item)
-		series     = (episode.get("series", {}) or item)
-		epdur      = int(episode.get("duration", "0") or "0") // 1000 # in seconds
-		epgenre    = episode.get("genre", "")
-		etype      = series.get("type", "film")
+					ref = "4097:0:1:%s:0:0:0:0:0:0" % channel[0]
+					name = channel[2]
+					self.updateStatus(name)  # GUI widget
 
-		genre = convertgenre(epgenre)
+					chevents = []
+					if channel[1] in self.guideList:
+						for evt in self.guideList[channel[1]]:
+							title = evt[0]
+							summary = evt[1]
+							begin = int(round(evt[2]))
+							duration = evt[3]
+							genre = evt[4]
 
-		offset = datetime.datetime.now() - datetime.datetime.utcnow()
-		try:
-			starttime  = strpTime(item["start"]) + offset
-		except:
+							chevents.append((begin, duration, title, "", summary, genre))
+					if len(chevents) > 0:
+						iterator = iter(chevents)
+						events_tuple = tuple(iterator)
+						self.epgcache.importEvents(ref + ":https%3a//.m3u8", events_tuple)
+
+
+					logo = channel[3]
+					self.down = DownloadComponent(param + 1, ref, name, not self.silent)
+					self.down.addCallback(self.updateprogress)
+
+					self.down.startCmd(logo)
+				else:
+					eDVBDB.getInstance().addOrUpdateBouquet(self.bouquetname, self.bouquetfile, self.bouquet, False)  # place at bottom if not exists
+					os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
+					open(TIMER_FILE, "w").write(str(time.time()))
+					self.salirok()
+		self.start()
+
+	def buildGuide(self, event):
+		#(title, summary, start, duration, genre)
+		_id = event.get("_id", "")
+		if len(_id) == 0:
 			return
-		start = time.mktime(starttime.timetuple())
-		title      = (item.get("title", ""))
-		tvplot     = (series.get("description", "") or series.get("summary", "") or chplot)
-		epnumber   = episode.get("number", 0)
-		epseason   = episode.get("season", 0)
-		epname     = (episode["name"])
-		epmpaa     = episode.get("rating", "")
-		epplot     = (episode.get("description", "") or tvplot or epname)
+		self.guideList[_id] = []
+		timelines = event.get("timelines", [])
+		chplot = (event.get("description", "") or event.get("summary", ""))
+	
+	
+		for item in timelines:
+			episode    = (item.get("episode", {})   or item)
+			series     = (episode.get("series", {}) or item)
+			epdur      = int(episode.get("duration", "0") or "0") // 1000 # in seconds
+			epgenre    = episode.get("genre", "")
+			etype      = series.get("type", "film")
+	
+			genre = self.convertgenre(epgenre)
+	
+			offset = datetime.datetime.now() - datetime.datetime.utcnow()
+			try:
+				starttime  = self.strpTime(item["start"]) + offset
+			except:
+				return
+			start = time.mktime(starttime.timetuple())
+			title      = (item.get("title", ""))
+			tvplot     = (series.get("description", "") or series.get("summary", "") or chplot)
+			epnumber   = episode.get("number", 0)
+			epseason   = episode.get("season", 0)
+			epname     = (episode["name"])
+			epmpaa     = episode.get("rating", "")
+			epplot     = (episode.get("description", "") or tvplot or epname)
+	
+			if len(epmpaa) > 0 and not "Not Rated" in epmpaa:
+				epplot = "(%s). %s" % (epmpaa, epplot)
+	
+			noserie = "live film"
+			if epseason > 0 and epnumber > 0 and etype not in noserie:
+				title = title + " (T%d)" % epseason
+				epplot = "T%d Ep.%d %s" % (epseason, epnumber, epplot)
+	
+			if epdur > 0:
+				self.guideList[_id].append((title, epplot, start, epdur, genre))
 
-		if len(epmpaa) > 0 and not "Not Rated" in epmpaa:
-			epplot = "(%s). %s" % (epmpaa, epplot)
+	def buildM3U(self, channel):
+		#(number, _id, name, logo, url)
+		logo = (channel.get("logo", {}).get("path", None) or None)
+		logo = (channel.get("solidLogoPNG", {}).get("path", None) or None) #blancos
+		logo = (channel.get("colorLogoPNG", {}).get("path", None) or None)
+		group = channel.get("category", "")
+		_id = channel["_id"]
+	
+		urls  = channel.get("stitched", {}).get("urls", [])
+		if len(urls) == 0: 
+			return False
+	
+		if isinstance(urls, list):
+			urls = [url["url"].replace("deviceType=&", "deviceType=web&").replace("deviceMake=&", "deviceMake=Chrome&").replace("deviceModel=&", "deviceModel=Chrome&").replace("appName=&", "appName=web&") for url in urls if url["type"].lower() == "hls"][0] # todo select quality
+	
+		if group not in list(self.channelsList.keys()):
+			self.channelsList[group] = []
+			self.categories.append(group)
+	
+		if int(channel["number"]) == 0:
+			number = _id[-4:].upper()
+		else:
+			number = channel["number"]
+	
+		self.channelsList[group].append((str(number), _id, channel["name"], logo, urls))
+		return True
 
-		noserie = "live film"
-		if epseason > 0 and epnumber > 0 and etype not in noserie:
-			title = title + " (T%d)" % epseason
-			epplot = "T%d Ep.%d %s" % (epseason, epnumber, epplot)
+	@staticmethod
+	def convertgenre(genre):
+		id = 0
+		if genre  in ("Classics", "Romance", "Thrillers", "Horror") or "Sci-Fi" in genre or "Action" in genre:
+			id = 0x10
+		elif "News" in genre or "Educational" in genre:
+			id = 0x20
+		elif genre == "Comedy":
+			id = 0x30
+		elif "Children" in genre:
+			id = 0x50
+		elif genre == "Music":
+			id = 0x60
+		elif genre == "Documentaries":
+			id = 0xA0
+		return id
 
-		if epdur > 0:
-			GuideList[_id].append((title, epplot, start, epdur, genre))
+	@staticmethod
+	def getGuidedata(full=False):
+		start = (datetime.datetime.fromtimestamp(PlutoDownloadBase.getLocalTime()).strftime("%Y-%m-%dT%H:00:00Z"))
+		stop = (datetime.datetime.fromtimestamp(PlutoDownloadBase.getLocalTime()) + datetime.timedelta(hours=24)).strftime("%Y-%m-%dT%H:00:00Z")
+	
+		if full:
+			return getURL(GUIDE_URL %(start, stop, getUUIDstr()), header=buildHeader(), life=60 * 60)
+		else:
+			return sorted((getURL(BASE_GUIDE %(start, stop, getUUIDstr()), header=buildHeader(), life=60 * 60)), key=lambda x: x["number"])
 
-def buildGuide(event):
-	#(title, summary, start, duration, genre)
-	_id = event.get("_id", "")
-	if len(_id) == 0:
-		return
-	GuideList[_id] = []
-	timelines = event.get("timelines", [])
-	chplot = (event.get("description", "") or event.get("summary", ""))
+	@staticmethod
+	def getLocalTime():
+		offset = datetime.datetime.utcnow() - datetime.datetime.now()
+		return time.time() + offset.total_seconds()
 
-
-	for item in timelines:
-		episode    = (item.get("episode", {})   or item)
-		series     = (episode.get("series", {}) or item)
-		epdur      = int(episode.get("duration", "0") or "0") // 1000 # in seconds
-		epgenre    = episode.get("genre", "")
-		etype      = series.get("type", "film")
-
-		genre = convertgenre(epgenre)
-
-		offset = datetime.datetime.now() - datetime.datetime.utcnow()
+	@staticmethod
+	def strpTime(datestring, format="%Y-%m-%dT%H:%M:%S.%fZ"):
 		try:
-			starttime  = strpTime(item["start"]) + offset
-		except:
-			return
-		start = time.mktime(starttime.timetuple())
-		title      = (item.get("title", ""))
-		tvplot     = (series.get("description", "") or series.get("summary", "") or chplot)
-		epnumber   = episode.get("number", 0)
-		epseason   = episode.get("season", 0)
-		epname     = (episode["name"])
-		epmpaa     = episode.get("rating", "")
-		epplot     = (episode.get("description", "") or tvplot or epname)
+			return datetime.datetime.strptime(datestring, format)
+		except TypeError:
+			return datetime.datetime.fromtimestamp(time.mktime(time.strptime(datestring, format)))
 
-		if len(epmpaa) > 0 and not "Not Rated" in epmpaa:
-			epplot = "(%s). %s" % (epmpaa, epplot)
+	def start(self):
+		pass
 
-		noserie = "live film"
-		if epseason > 0 and epnumber > 0 and etype not in noserie:
-			title = title + " (T%d)" % epseason
-			epplot = "T%d Ep.%d %s" % (epseason, epnumber, epplot)
+	def stop(self):
+		pass
 
-		if epdur > 0:
-			GuideList[_id].append((title, epplot, start, epdur, genre))
+	def salirok(self, answer=True):
+		pass
+
+	def updateProgressBar(self, param):
+		pass
+	
+	def updateStatus(self, name):
+		pass
 
 
-class PlutoDownload(Screen):
+class PlutoDownload(PlutoDownloadBase, Screen):
 	skin = f"""
 		<screen name="PlutoTVdownload" position="60,60" resolution="1920,1080" size="615,195" title="PlutoTV EPG Download" flags="wfNoBorder" backgroundColor="#ff000000">
 		<ePixmap name="background" position="0,0" size="615,195" pixmap="{PLUGIN_FOLDER}/images/backgroundHD.png" zPosition="-1" alphatest="off" />
-		<widget name="picon" position="15,55" size="120,80" transparent="1" noWrap="1" alphatest="blend"/>
+		<widget name="logo" position="15,55" size="120,80" transparent="1" noWrap="1" alphatest="blend"/>
 		<widget name="action" halign="left" valign="center" position="13,9" size="433,30" font="Regular;25" foregroundColor="#dfdfdf" transparent="1" backgroundColor="#000000" borderColor="black" borderWidth="1" noWrap="1"/>
 		<widget name="progress" position="150,97" size="420,12" borderWidth="0" backgroundColor="#1143495b" pixmap="{PLUGIN_FOLDER}/images/progresoHD.png" zPosition="2" alphatest="blend" />
 		<eLabel name="fondoprogreso" position="150,97" size="420,12" backgroundColor="#102a3b58" />
@@ -433,142 +461,26 @@ class PlutoDownload(Screen):
 		<widget name="status" halign="center" valign="center" position="150,120" size="420,30" font="Regular;24" foregroundColor="#ffffff" transparent="1" backgroundColor="#000000" borderColor="black" borderWidth="1" noWrap="1"/>
 		</screen>"""
 
-	def __init__(self, session, args = "" ):
+	def __init__(self, session, args = ""):
 		self.session = session
 		Screen.__init__(self, session)
-		self.iprogress = 0
+		PlutoDownloadBase.__init__(self)
 		self.total = 0
 		self["progress"] = ProgressBar()
 		self["action"] = Label(_("EPG Download: %s Pluto TV") % args)
 		self["wait"] = Label("")
 		self["status"] = Label(_("Please wait..."))
 		self["actions"] = ActionMap(["OkCancelActions"], {"cancel": self.salir}, -1)
-		self["picon"] = Pixmap()
-		self.epgcache = eEPGCache.getInstance()
-		self.fd = None
-		self.state = 1
+		self["logo"] = Pixmap()
 		self.onFirstExecBegin.append(self.init)
 
 	def init(self):
-		self["picon"].instance.setScale(1)
-		self["picon"].instance.setPixmapFromFile(os.path.join(PLUGIN_FOLDER, "plutotv.png"))
+		self["logo"].instance.setScale(1)
+		self["logo"].instance.setPixmapFromFile(os.path.join(PLUGIN_FOLDER, "plutotv.png"))
 		self["progress"].setValue(0)
 		self.TimerTemp = eTimer()
 		self.TimerTemp.callback.append(self.download)
 		self.TimerTemp.startLongTimer(1)
-
-
-	def download(self):
-		global ChannelsList, GuideList, Categories
-		ChannelsList.clear()
-		GuideList.clear()
-		Categories.clear()
-		channels = getChannels()
-		guide = getGuidedata()
-		[buildM3U(channel) for channel in channels]
-		self.total = len(channels)
-
-		self.fd = open("/etc/enigma2/" + BOUQUET, "w")
-		self.fd.write("#NAME Pluto TV\n")
-
-		if len(Categories) == 0:
-			self.session.openWithCallback(self.salirok, MessageBox, _("There is no data, it is possible that Pluto TV is not available in your country"), type=MessageBox.TYPE_ERROR, timeout=10)
-		else:
-			self.keystot = len(ChannelsList)
-			if Categories[0] in ChannelsList:
-				self.subtotal = len(ChannelsList[Categories[0]])
-			else:
-				self.subtotal = 0
-			self.key = 0
-			self.chitem = 0
-			[buildGuide(event) for event in guide]
-			self.updateprogress(event=DownloadComponent.EVENT_DONE, param=0)
-
-	def updateprogress(self, event=None, param=None, ref=None, name=None):
-		####### hack for exit before end
-		cont = False
-		try:
-			if self.state == 1:
-				cont = True
-		except:
-			pass
-		#################################
-		if cont:
-
-			if event == DownloadComponent.EVENT_DONE:
-				try:
-					self.iprogress = ((param+1) *100) // self.total
-				except:
-					self.iprogress=100
-				if self.iprogress > 100:
-					self.iprogress = 100
-
-				self["progress"].setValue(self.iprogress)
-				self["wait"].text = str(self.iprogress)+" %"
-				if self.fd:
-					if param < self.total:
-						key = Categories[self.key]
-						if self.chitem == self.subtotal:
-							self.chitem = 0
-							found = False
-							while not found:
-								self.key = self.key + 1
-								key = Categories[self.key]
-								found = key in ChannelsList
-							self.subtotal = len(ChannelsList[key])
-
-
-						if self.chitem == 0:
-							self.fd.write("#SERVICE 1:64:%s:0:0:0:0:0:0:0::%s\n#DESCRIPTION %s\n" % (self.key, Categories[self.key], Categories[self.key]))
-
-
-						channel = ChannelsList[key][self.chitem]
-						sref = "#SERVICE 4097:0:1:%s:0:0:0:0:0:0:%s:%s" % (channel[0], quote(channel[4]), channel[2])
-						self.fd.write("%s\n#DESCRIPTION %s\n" % (sref, channel[2]))
-						self.chitem = self.chitem + 1
-
-						ref = "4097:0:1:%s:0:0:0:0:0:0" % channel[0]
-						name = channel[2]
-						self["status"].text = _("Waiting for Channel: ")  + name
-
-						chevents = []
-						if channel[1] in GuideList:
-							for evt in GuideList[channel[1]]:
-								title = evt[0]
-								summary = evt[1]
-								begin = int(round(evt[2]))
-								duration = evt[3]
-								genre = evt[4]
-
-								chevents.append((begin, duration, title, "", summary, genre))
-						if len(chevents) > 0:
-							iterator = iter(chevents)
-							events_tuple = tuple(iterator)
-							self.epgcache.importEvents(ref + ":https%3a//.m3u8", events_tuple)
-
-
-						logo = channel[3]
-						self.down = DownloadComponent(param + 1, ref, name, True)
-						self.down.addCallback(self.updateprogress)
-
-						self.down.startCmd(logo)
-					else:
-						self.fd.close()
-						self.fd = None
-						bouquets = open("/etc/enigma2/bouquets.tv", "r").read()
-						if not BOUQUET in bouquets:
-							addBouquet()
-
-						db = eDVBDB.getInstance()
-						db.reloadServicelist()
-						db.reloadBouquets()
-						os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
-						open(TIMER_FILE, "w").write(str(time.time()))
-						self.salirok()
-				else:
-					self.TimerTemp = eTimer()
-					self.TimerTemp.callback.append(self.salirok)
-					self.TimerTemp.startLongTimer(1)
 
 	def salir(self):
 			stri = _("The download is in progress. Exit now?")
@@ -578,13 +490,28 @@ class PlutoDownload(Screen):
 		if answer:
 			Silent.stop()
 			Silent.start()
-			self.close(True) 
+			self.close(True)
 
-class DownloadSilent:
+	def updateProgressBar(self, param):
+		try:
+			progress = ((param + 1) * 100) // self.total
+		except:
+			progress = 100
+		else:
+			if progress > 100:
+				progress = 100
+		self["progress"].setValue(progress)
+		self["wait"].text = str(progress) + " %"
+
+	def updateStatus(self, name):
+		self["status"].text = _("Waiting for Channel: ") + name
+
+	def noCategories(self):
+		self.session.openWithCallback(self.salirok, MessageBox, _("There is no data, it is possible that Pluto TV is not available in your country"), type=MessageBox.TYPE_ERROR, timeout=10)
+
+class DownloadSilent(PlutoDownloadBase):
 	def __init__(self):
-		self.epgcache = eEPGCache.getInstance()
-		self.fd = None
-		self.state = 1
+		PlutoDownloadBase.__init__(self)
 		self.timer = eTimer()
 		self.timer.timeout.get().append(self.download)
 
@@ -606,109 +533,11 @@ class DownloadSilent:
 	def stop(self):
 		self.timer.stop()
 
-	def download(self):
-		global ChannelsList, GuideList, Categories
+	def noCategories(self):
+		print("[Pluto TV] There is no data, it is possible that Pluto TV is not available in your country.")
 		self.stop()
-		ChannelsList.clear()
-		GuideList.clear()
-		Categories.clear()
-		channels = getChannels()
-		guide = getGuidedata()
-		[buildM3U(channel) for channel in channels]
-
-		self.total = len(channels)
-		self.fd = open("/etc/enigma2/" + BOUQUET, "w")
-		self.fd.write("#NAME Pluto TV\n")
-
-		if len(Categories) == 0:
-			print("[Pluto TV] " + _("There is no data, it is possible that Pluto TV is not available in your country"))
-			self.stop()
-			os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
-			open(TIMER_FILE, "w").write(str(time.time()))
-			self.start()
-		else:
-			self.keystot = len(ChannelsList)
-			if Categories[0] in ChannelsList:
-				self.subtotal = len(ChannelsList[Categories[0]])
-			else:
-				self.subtotal = 0
-			self.key = 0
-			self.chitem = 0
-			[buildGuide(event) for event in guide]
-			self.updateprogress(event=DownloadComponent.EVENT_DONE, param=0)
-
-	def updateprogress(self, event=None, param=None, ref=None, name=None):
-		####### hack for exit before end
-		cont = False
-		try:
-			if self.state == 1:
-				cont = True
-		except:
-			pass
-		#################################
-		if cont:
-
-			if event == DownloadComponent.EVENT_DONE:
-				if self.fd:
-					if param<self.total:
-						key = Categories[self.key]
-						if self.chitem == self.subtotal:
-							self.chitem = 0
-							found = False
-							while not found:
-								self.key = self.key + 1
-								key = Categories[self.key]
-								found = key in ChannelsList
-							self.subtotal = len(ChannelsList[key])
-
-
-						if self.chitem == 0:
-							self.fd.write("#SERVICE 1:64:%s:0:0:0:0:0:0:0::%s\n#DESCRIPTION %s\n" % (self.key, Categories[self.key], Categories[self.key]))
-
-
-						channel = ChannelsList[key][self.chitem]
-						sref = "#SERVICE 4097:0:1:%s:0:0:0:0:0:0:%s:%s" % (channel[0], quote(channel[4]), channel[2])
-						self.fd.write("%s\n#DESCRIPTION %s\n" % (sref, channel[2]))
-						self.chitem = self.chitem + 1
-
-						ref = "4097:0:1:%s:0:0:0:0:0:0" % channel[0]
-						name = channel[2]
-
-
-						chevents = []
-						if channel[1] in GuideList:
-							for evt in GuideList[channel[1]]:
-								title = evt[0]
-								summary = evt[1]
-								begin = int(round(evt[2]))
-								duration = evt[3]
-								genre = evt[4]
-
-								chevents.append((begin, duration, title, "", summary, genre))
-						if len(chevents)>0:
-							iterator = iter(chevents)
-							events_tuple = tuple(iterator)
-							self.epgcache.importEvents(ref+":https%3a//.m3u8", events_tuple)
-
-
-						logo = channel[3]
-						self.down = DownloadComponent(param+1, ref, name)
-						self.down.addCallback(self.updateprogress)
-
-						self.down.startCmd(logo)
-					else:
-						self.fd.close()
-						self.fd = None
-						bouquets = open("/etc/enigma2/bouquets.tv", "r").read()
-						if not BOUQUET in bouquets:
-							addBouquet()
-
-						db = eDVBDB.getInstance()
-						db.reloadServicelist()
-						db.reloadBouquets()
-						os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
-						open(TIMER_FILE, "w").write(str(time.time()))
-
+		os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
+		open(TIMER_FILE, "w").write(str(time.time()))
 		self.start()
 
 
