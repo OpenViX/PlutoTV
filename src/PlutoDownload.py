@@ -29,6 +29,7 @@ from Components.config import ConfigSelection, ConfigSubsection, config
 from Components.Label import Label
 from Components.Pixmap import Pixmap
 from Components.ProgressBar import ProgressBar
+from Screens.ChannelSelection import service_types_tv
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 from Tools.CountryCodes import ISO3166
@@ -61,7 +62,6 @@ Categories = []
 
 sid1_hex = str(uuid.uuid1().hex)
 deviceId1_hex = str(uuid.uuid4().hex)
-service_types_tv = "1:7:1:0:0:0:0:0:0:0:(type == 1) || (type == 17) || (type == 22) || (type == 25) || (type == 134) || (type == 195)"
 
 
 X_FORWARDS = {
