@@ -22,15 +22,14 @@
 
 
 # for localized messages
-from . import _
-from . import PlutoDownload
+from . import _, PluginLanguageDomain
+from .PlutoDownload import getOndemand, getUUID, getVOD, PlutoDownload, Silent  # , getClips 
 from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, DATA_FOLDER, PLUGIN_FOLDER
 
-from skin import applySkinFactor, fonts
+from skin import applySkinFactor, fonts, parameters
 
 from Components.ActionMap import ActionMap
 from Components.AVSwitch import AVSwitch
-from Components.Button import Button
 from Components.config import config, ConfigYesNo
 from Components.Label import Label
 from Components.MenuList import MenuList
@@ -43,13 +42,15 @@ from Screens.InfoBar import MoviePlayer
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 from Screens.Setup import Setup
-from Tools.Directories import fileExists, pathExists, isPluginInstalled, resolveFilename, SCOPE_CURRENT_SKIN
+from Tools.Directories import fileExists, isPluginInstalled, resolveFilename, SCOPE_CURRENT_SKIN
+from Tools.Hex2strColor import Hex2strColor
 from Tools.LoadPixmap import LoadPixmap
 from Tools import Notifications
 
 from enigma import BT_KEEP_ASPECT_RATIO, BT_SCALE, eConsoleAppContainer, eListboxPythonMultiContent, ePicLoad, eServiceReference, eTimer, gFont, iPlayableService
 
 import os
+from gettext import dngettext
 from pickle import load as pickle_load, dump as pickle_dump
 from time import time, strftime, gmtime, localtime
 from urllib.parse import quote
@@ -208,7 +209,7 @@ class PlutoTV(Screen):
 	skin = f"""
 		<screen name="PlutoTV" zPosition="2" position="0,0" resolution="1920,1080" size="1920,1080" flags="wfNoBorder" title="Pluto TV" transparent="0">
 		<ePixmap pixmap="{PLUGIN_FOLDER}/images/fondo.png" position="0,0" size="1920,1080" zPosition="-2" alphatest="blend" />
-		<widget name="logo" position="70,30" size="300,90" zPosition="0" alphatest="blend" transparent="1" />
+		<ePixmap pixmap="{PLUGIN_FOLDER}/images/logo.png" position="70,30" size="486,90" zPosition="3" alphatest="blend" transparent="1" scale="1"/>
 		<widget source="global.CurrentTime" render="Label" position="1555,48" size="300,55" font="Regular; 43" halign="right" zPosition="5" backgroundColor="#00000000" transparent="1">
 			<convert type="ClockToText">Format:%H:%M</convert>
 		</widget>
@@ -216,18 +217,15 @@ class PlutoTV(Screen):
 		<widget name="playlist" position="400,48" size="1150,55" font="Regular; 40" backgroundColor="#00000000" transparent="1" foregroundColor="#00ffff00" zPosition="2" halign="center" />
 		<widget name="feedlist" position="70,170" size="615,728" scrollbarMode="showOnDemand" enableWrapAround="1" transparent="1" zPosition="5" foregroundColor="#00ffffff" backgroundColorSelected="#00ff0063" backgroundColor="#00000000" />
 		<widget name="poster" position="772,235" size="483,675" zPosition="3" alphatest="blend" />
-		<widget source="description" position="1282,270" size="517,347" render="RunningText" options="movetype=swimming,startpoint=0,direction=top,steptime=140,repeat=5,always=0,startdelay=8000,wrap" font="Regular; 28" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="0" valign="top" />
 		<widget name="vtitle" position="775,180" size="1027,48" font="Regular; 37" backgroundColor="#00000000" foregroundColor="#00ffff00" transparent="1" />
-		<widget name="vinfo" position="1282,235" size="517,48" font="Regular; 25" backgroundColor="#00000000" foregroundColor="#009B9B9B" transparent="1" />
-		<widget name="eptitle" position="1282,627" size="517,33" font="Regular; 28" backgroundColor="#00000000" foregroundColor="#00ffff00" transparent="1" />
-		<widget source="epinfo" position="1282,667" size="517,246" render="RunningText" options="movetype=swimming,startpoint=0,direction=top,steptime=140,repeat=5,always=0,startdelay=8000,wrap" font="Regular; 28" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
-		<widget name="help" position="70,980" size="615,48" font="Regular; 25" backgroundColor="#00000000" foregroundColor="#009B9B9B" transparent="0" halign="center"/>
+		<widget name="info" position="1282,235" size="517,678" font="Regular;28" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
 		<eLabel position="770,956" size="30,85" backgroundColor="#00FF0000" cornerRadius="7"/>
 		<eLabel position="1100,956" size="30,85" backgroundColor="#00ffff00" cornerRadius="7"/>
 		<eLabel position="1430,956" size="30,85" backgroundColor="#0032cd32" cornerRadius="7"/> 
 		<widget source="key_red" render="Label" position="810,956" size="290,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
 		<widget source="key_yellow" render="Label" position="1140,956" size="290,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
 		<widget source="key_green" render="Label" position="1470,956" size="425,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" /> 
+		<widget source="updated" render="Label" position="1140,1042" size="755,36" halign="center" valign="right" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" /> 
 		<ePixmap pixmap="buttons/key_menu.png" alphatest="blend" position="70,979" size="52,38" backgroundColor="#00000000" transparent="1" zPosition="2"/> 
 		</screen>"""
 
@@ -235,15 +233,17 @@ class PlutoTV(Screen):
 		self.session = session
 		Screen.__init__(self, session)
 
+		self.colors = parameters.get("PlutoTvColors", [])  # First item must be default text colour. If parameter is missing adding colours will be skipped.
+
 		self.titlemenu = _("VOD Menu")
 		self["feedlist"] = PlutoList([])
 		self["playlist"] = Label(self.titlemenu)
 		self["loading"] = Label(_("Loading data... Please wait"))
-		self["description"] = StaticText()
 		self["vtitle"] = Label()
-		self["vinfo"] = Label()
-		self["eptitle"] = Label()
-		self["epinfo"] = StaticText()
+		self.vinfo = ""
+		self.description = ""
+		self.eptitle = ""
+		self.epinfo = ""
 		self["key_red"] = StaticText(_("Exit"))
 		self["key_yellow"] = StaticText()
 		self.mdb = isPluginInstalled("tmdb") and "tmdb" or isPluginInstalled("IMDb") and "imdb"
@@ -253,22 +253,18 @@ class PlutoTV(Screen):
 		self["key_menu"] = StaticText(_("MENU"))
 		self["poster"] = Pixmap()
 		self["logo"] = Pixmap()
-		self["help"] = Label(_("Press back or < to go back in the menus"))
-		self["help"].hide()
 		self.title = _("PlutoTV") + " - " + self.titlemenu
-
+		self["info"] = Label()  # combined info for fluid layout
 
 		self["feedlist"].onSelectionChanged.append(self.update_data)
 		self.films = []
 		self.menu = []
 		self.history = []
 		self.chapters = {}
+		self.numSeasons = 0
 
-		sc = AVSwitch().getFramebufferScale()
+		self.sc = AVSwitch().getFramebufferScale()
 		self.picload = ePicLoad()
-		self.picload.setPara((applySkinFactor(200), applySkinFactor(60), sc[0], sc[1], 0, 0, "#00000000"))
-		self.picload.PictureData.get().append(self.showback)
-		self.picload.startDecode(f"{PLUGIN_FOLDER}/images/logo.png")
 
 		if config.plugins.plutotv.stopservice.value:
 			self.oldService = self.session.nav.getCurrentlyPlayingServiceReference()
@@ -292,15 +288,6 @@ class PlutoTV(Screen):
 		self.TimerTemp.callback.append(self.getCategories)
 		self.TimerTemp.start(10, 1)
 
-	def showback(self, picInfo=None):
-		try:
-			ptr = self.picload.getData()
-			if ptr != None:
-				self["logo"].setPixmap(ptr.__deref__())
-				self["logo"].show()
-		except Exception as ex:
-			print("[PlutoScreen] showImage, ERROR", ex)
-
 	def update_data(self):
 		if len(self["feedlist"].list) == 0:
 			return
@@ -312,16 +299,17 @@ class PlutoTV(Screen):
 
 		if __type in ("movie", "series"):
 			film = self.films[index]
-			self["description"].text = film[2].decode("utf-8")
+			self.description = film[2].decode("utf-8")
 			self["vtitle"].text = film[1].decode("utf-8")
 			info = film[4].decode("utf-8") + "       "
 			self["key_yellow"].text = self.yellowLabel
 
 			if __type == "movie":
-				info = info + strftime("%Hh %Mm", gmtime(int(film[5])))
+				info += strftime("%Hh %Mm", gmtime(int(film[5])))
 			else:
-				info = info + str(film[10]) + " " + _("Seasons available")
-			self["vinfo"].text = info
+				info += dngettext(PluginLanguageDomain, "%s Season available", "%s Seasons available", film[10]) % film[10]
+				self.numSeasons = film[10]
+			self.vinfo = info
 			picname = film[0] + ".jpg"
 			pic = film[6]
 			if len(picname)>5:
@@ -330,14 +318,24 @@ class PlutoTV(Screen):
 				down.addCallback(self.downloadPostersCallback)
 				down.startCmd(picname, pic)
 
-		if __type == "seasons":
-			self["eptitle"].text = ""
-			self["epinfo"].text = ""
+		elif __type == "seasons":
+			self.eptitle = ""
+			self.epinfo = ""
+			if self.numSeasons == 1:
+				self.lastAction()
 
-		if __type == "episode":
+		elif __type == "episode":
 			film = self.chapters[_id][index]
-			self["epinfo"].text = film[3].decode("utf-8")
-			self["eptitle"].text = film[1].decode("utf-8") + "  " + strftime("%Hh %Mm", gmtime(int(film[5])))
+			self.eptitle = film[1].decode("utf-8") + "  " + strftime("%Hh %Mm", gmtime(int(film[5])))
+			self.epinfo = film[3].decode("utf-8")
+		self.updateInfo()
+
+	def updateInfo(self):
+		# combine info for fluid layout
+		vinfoColored = self.vinfo and self.addColor(self.vinfo)
+		eptitleColored = self.eptitle and self.addColor(self.eptitle)
+		spacer = "\n" if (vinfoColored or self.description) and (eptitleColored or self.epinfo) else ""
+		self["info"].text = "\n".join([x for x in (vinfoColored, self.description, spacer, eptitleColored, self.epinfo) if x])
 
 	def downloadPostersCallback(self, event, filename=None, __type=None):
 		if __type == "poster" and filename:
@@ -347,11 +345,10 @@ class PlutoTV(Screen):
 		try:
 			x, y = self["poster"].getSize()
 			picture = image.replace("\n", "").replace("\r", "")
-			sc = AVSwitch().getFramebufferScale()
 			self.picload.setPara((x,
 			 y,
-			 sc[0],
-			 sc[1],
+			 self.sc[0],
+			 self.sc[1],
 			 0,
 			 0,
 			 "#00000000"))
@@ -373,7 +370,7 @@ class PlutoTV(Screen):
 
 	def getCategories(self):
 		self.lvod = {}
-		ondemand = PlutoDownload.getOndemand()
+		ondemand = getOndemand()
 		categories = ondemand.get("categories", [])
 		if not categories:
 			self.session.openWithCallback(self.exit, MessageBox, _("There is no data, it is possible that Pluto TV is not available in your country"), type=MessageBox.TYPE_ERROR, timeout=10)
@@ -461,6 +458,7 @@ class PlutoTV(Screen):
 
 
 	def action(self):
+		self.lastAction = self.action
 		index, name, __type, _id = self.getSelection()
 		menu = []
 		menuact = self.titlemenu
@@ -477,9 +475,8 @@ class PlutoTV(Screen):
 			self["playlist"].text = self.titlemenu
 			self.title = _("PlutoTV") + " - " + self.titlemenu
 			self.history.append((index, menuact))
-			self["help"].show()
 		if __type == "series":
-			chapters = PlutoDownload.getVOD(_id)
+			chapters = getVOD(_id)
 			self.buildchapters(chapters)
 			for key in list(self.chapters.keys()):
 				sname = key
@@ -508,18 +505,19 @@ class PlutoTV(Screen):
 			film = self.films[index]
 			sid = film[0]
 			name = film[1].decode("utf-8")
-			sessionid, deviceid = PlutoDownload.getUUID()
+			sessionid, deviceid = getUUID()
 			url = film[9]
 			self.playVOD(name, sid, url)
 		if __type == "episode":
 			film = self.chapters[_id][index]
 			sid = film[0]
 			name = film[1]
-			sessionid, deviceid = PlutoDownload.getUUID()
+			sessionid, deviceid = getUUID()
 			url = film[9]
 			self.playVOD(name, sid, url)
 
 	def back(self):
+		self.lastAction = self.back
 		index, name, __type, _id = self.getSelection()
 		menu = []
 		if self.history:
@@ -528,10 +526,9 @@ class PlutoTV(Screen):
 			if __type in ("movie", "series"):
 				for key in self.menu:
 					menu.append(self["feedlist"].listentry(key.decode("utf-8"), "menu", ""))
-				self["help"].hide()
-				self["description"].text = ""
 				self["vtitle"].text = ""
-				self["vinfo"].text = ""
+				self.vinfo = ""
+				self.description = ""
 			if __type == "seasons":
 				for x in self.films:
 					sname = x[1].decode("utf-8")
@@ -554,12 +551,12 @@ class PlutoTV(Screen):
 				self["poster"].hide()
 
 	def playVOD(self, name, id, url=None):
-#		data = PlutoDownload.getClips(id)[0]
+#		data = getClips(id)[0]
 #		if not data: return
 #		url   = (data.get("url", "") or data.get("sources", [])[0].get("file", ""))
 #		url = url.replace("siloh.pluto.tv", "dh7tjojp94zlv.cloudfront.net") ## Hack for siloh.pluto.tv not access - siloh.pluto.tv redirect to dh7tjojp94zlv.cloudfront.net
 		if url:
-			uid, did = PlutoDownload.getUUID()
+			uid, did = getUUID()
 			url = url.replace("deviceModel=", "deviceModel=web").replace("deviceMake=", "deviceMake=chrome") + uid
 			
 		if url and name:
@@ -569,7 +566,7 @@ class PlutoTV(Screen):
 				self.session.open(Pluto_Player, service=reference, sid=id)
 
 	def green(self):
-		self.session.openWithCallback(self.endupdateLive, PlutoDownload.PlutoDownload)
+		self.session.openWithCallback(self.endupdateLive, PlutoDownload)
 
 	def endupdateLive(self, ret=None):
 		self.session.openWithCallback(self.updatebutton, MessageBox, _("You now have an updated favorites list with Pluto TV channels on your channel list.\n\nEverything will be updated automatically every 5 hours."), type=MessageBox.TYPE_INFO, timeout=10)
@@ -580,7 +577,7 @@ class PlutoTV(Screen):
 			last = float(open(TIMER_FILE, "r").read().replace("\n", "").replace("\r", ""))
 			updated = strftime(" %x %H:%M", localtime(int(last)))
 			txt = _("Last:") + updated
-			self["key_green"].text = _("Update LiveTV Bouquet") + "\n" + txt
+			self["key_green"].text = _("Update LiveTV Bouquet")
 			self["updated"].text = _("LiveTV Bouquet last updated:") + updated
 		else:
 			self["key_green"].text = _("Create LiveTV Bouquet")
@@ -606,6 +603,11 @@ class PlutoTV(Screen):
 
 	def loadSetup(self):
 		self.session.openWithCallback(self.close, PlutoSetup)
+
+	def addColor(self, text, i=1):
+		if i < len(self.colors):
+			text = Hex2strColor(self.colors[i]) + text + Hex2strColor(self.colors[0])
+		return text
 
 
 class PlutoSetup(Setup):
@@ -708,11 +710,11 @@ class Pluto_Player(MoviePlayer):
 
 
 def autostart(reason, session):
-	PlutoDownload.Silent.init(session)
+	Silent.init(session)
 
 
 def Download_PlutoTV(session, **kwargs):
-	session.open(PlutoDownload.PlutoDownload)
+	session.open(PlutoDownload)
 
 
 def system(session, **kwargs):
