@@ -27,7 +27,6 @@ from .Variables import TIMER_FILE, PLUGIN_FOLDER
 from Components.ActionMap import ActionMap
 from Components.config import ConfigSelection, ConfigSubsection, config
 from Components.Label import Label
-from Components.Pixmap import Pixmap
 from Components.ProgressBar import ProgressBar
 from Screens.ChannelSelection import service_types_tv
 from Screens.MessageBox import MessageBox
@@ -452,8 +451,8 @@ class PlutoDownloadBase():
 class PlutoDownload(PlutoDownloadBase, Screen):
 	skin = f"""
 		<screen name="PlutoTVdownload" position="60,60" resolution="1920,1080" size="615,195" title="PlutoTV EPG Download" flags="wfNoBorder" backgroundColor="#ff000000">
-		<ePixmap name="background" position="0,0" size="615,195" pixmap="{PLUGIN_FOLDER}/images/backgroundHD.png" zPosition="-1" alphatest="off" />
-		<widget name="logo" position="15,55" size="120,80" transparent="1" noWrap="1" alphatest="blend"/>
+		<ePixmap position="0,0" size="615,195" pixmap="{PLUGIN_FOLDER}/images/backgroundHD.png" zPosition="-1" alphatest="blend" />
+		<ePixmap position="15,55" size="120,80" pixmap="{PLUGIN_FOLDER}/plutotv.png" scale="1" alphatest="blend" transparent="1" zPosition="10"/>
 		<widget name="action" halign="left" valign="center" position="13,9" size="433,30" font="Regular;25" foregroundColor="#dfdfdf" transparent="1" backgroundColor="#000000" borderColor="black" borderWidth="1" noWrap="1"/>
 		<widget name="progress" position="150,97" size="420,12" borderWidth="0" backgroundColor="#1143495b" pixmap="{PLUGIN_FOLDER}/images/progresoHD.png" zPosition="2" alphatest="blend" />
 		<eLabel name="fondoprogreso" position="150,97" size="420,12" backgroundColor="#102a3b58" />
@@ -471,12 +470,9 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 		self["wait"] = Label("")
 		self["status"] = Label(_("Please wait..."))
 		self["actions"] = ActionMap(["OkCancelActions"], {"cancel": self.salir}, -1)
-		self["logo"] = Pixmap()
 		self.onFirstExecBegin.append(self.init)
 
 	def init(self):
-		self["logo"].instance.setScale(1)
-		self["logo"].instance.setPixmapFromFile(os.path.join(PLUGIN_FOLDER, "plutotv.png"))
 		self["progress"].setValue(0)
 		self.TimerTemp = eTimer()
 		self.TimerTemp.callback.append(self.download)
