@@ -23,7 +23,7 @@
 
 # for localized messages
 from . import _, PluginLanguageDomain
-from .PlutoDownload import getOndemand, getUUID, getVOD, PlutoDownload, Silent  # , getClips 
+from .PlutoDownload import plutoRequest, PlutoDownload, Silent  # , getClips 
 from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, DATA_FOLDER, PLUGIN_FOLDER
 
 from skin import applySkinFactor, fonts, parameters
@@ -249,6 +249,7 @@ class PlutoTV(Screen):
 		self.mdb = isPluginInstalled("tmdb") and "tmdb" or isPluginInstalled("IMDb") and "imdb"
 		self.yellowLabel = _("TMDb Search") if self.mdb else (_("IMDb Search") if self.mdb else "")
 		self["key_green"] = StaticText()
+		self["key_blue"] = StaticText()
 		self["updated"] = StaticText()
 		self["key_menu"] = StaticText(_("MENU"))
 		self["poster"] = Pixmap()
@@ -278,6 +279,7 @@ class PlutoTV(Screen):
 			"cancel": self.exit,
 			"save": self.green,
 			"yellow": self.MDB,
+			"blue": self.blue,
 			"historyBack": self.back,
 			"menu": self.loadSetup,
 		}, -1)
@@ -322,7 +324,12 @@ class PlutoTV(Screen):
 			self.eptitle = ""
 			self.epinfo = ""
 			if self.numSeasons == 1:
-				self.lastAction()
+				print("DEBUG calling lastAction")
+				# Fix a timing issue. Calling self.lastAction directly results in the title for the previous level being displayed.
+				self.lastActionTimer = eTimer()
+				self.lastActionTimer.callback.append(self.lastAction)
+				self.lastActionTimer.start(10, 1)
+				return  # skip calling self.updateInfo
 
 		elif __type == "episode":
 			film = self.chapters[_id][index]
@@ -370,7 +377,7 @@ class PlutoTV(Screen):
 
 	def getCategories(self):
 		self.lvod = {}
-		ondemand = getOndemand()
+		ondemand = plutoRequest.getOndemand()
 		categories = ondemand.get("categories", [])
 		if not categories:
 			self.session.openWithCallback(self.exit, MessageBox, _("There is no data, it is possible that Pluto TV is not available in your country"), type=MessageBox.TYPE_ERROR, timeout=10)
@@ -463,6 +470,7 @@ class PlutoTV(Screen):
 		menu = []
 		menuact = self.titlemenu
 		if __type == "menu":
+			print("DEBUG in menu")
 			self.films = self.lvod[self.menu[index]]
 			for x in self.films:
 				sname = x[1].decode("utf-8")
@@ -476,7 +484,8 @@ class PlutoTV(Screen):
 			self.title = _("PlutoTV") + " - " + self.titlemenu
 			self.history.append((index, menuact))
 		if __type == "series":
-			chapters = getVOD(_id)
+			print("DEBUG in series")
+			chapters = plutoRequest.getVOD(_id)
 			self.buildchapters(chapters)
 			for key in list(self.chapters.keys()):
 				sname = key
@@ -490,6 +499,7 @@ class PlutoTV(Screen):
 			self.history.append((index, menuact))
 			self["feedlist"].moveToIndex(0)
 		if __type == "seasons":
+			print("DEBUG in seasons")
 			for key in self.chapters[_id]:
 				sname = key[1].decode("utf-8")
 				stype = "episode"
@@ -497,6 +507,7 @@ class PlutoTV(Screen):
 				menu.append(self["feedlist"].listentry(_("Episode") + " " + key[2] + ". " + sname, stype, _id, key[0]))
 			self["feedlist"].setList(menu)
 			self.titlemenu = menuact.split(" - ")[0] + " - " + name
+			print("DEBUG self.titlemenu", self.titlemenu)
 			self["playlist"].text = self.titlemenu
 			self.title = _("PlutoTV") + " - " + self.titlemenu
 			self.history.append((index, menuact))
@@ -505,14 +516,15 @@ class PlutoTV(Screen):
 			film = self.films[index]
 			sid = film[0]
 			name = film[1].decode("utf-8")
-			sessionid, deviceid = getUUID()
+			sessionid, deviceid = plutoRequest.getUUID()
 			url = film[9]
 			self.playVOD(name, sid, url)
 		if __type == "episode":
+			print("DEBUG in episode")
 			film = self.chapters[_id][index]
 			sid = film[0]
 			name = film[1]
-			sessionid, deviceid = getUUID()
+			sessionid, deviceid = plutoRequest.getUUID()
 			url = film[9]
 			self.playVOD(name, sid, url)
 
@@ -551,12 +563,12 @@ class PlutoTV(Screen):
 				self["poster"].hide()
 
 	def playVOD(self, name, id, url=None):
-#		data = getClips(id)[0]
+#		data = plutoRequest.getClips(id)[0]
 #		if not data: return
 #		url   = (data.get("url", "") or data.get("sources", [])[0].get("file", ""))
 #		url = url.replace("siloh.pluto.tv", "dh7tjojp94zlv.cloudfront.net") ## Hack for siloh.pluto.tv not access - siloh.pluto.tv redirect to dh7tjojp94zlv.cloudfront.net
 		if url:
-			uid, did = getUUID()
+			uid, did = plutoRequest.getUUID()
 			url = url.replace("deviceModel=", "deviceModel=web").replace("deviceMake=", "deviceMake=chrome") + uid
 			
 		if url and name:
@@ -567,6 +579,13 @@ class PlutoTV(Screen):
 
 	def green(self):
 		self.session.openWithCallback(self.endupdateLive, PlutoDownload)
+
+	def blue(self):
+		if self["key_blue"].text:
+			Silent.stop()
+			from enigma import eDVBDB
+			eDVBDB.getInstance().removeBouquet(PlutoDownload.bouquetfile)
+			self.updatebutton()
 
 	def endupdateLive(self, ret=None):
 		self.session.openWithCallback(self.updatebutton, MessageBox, _("You now have an updated favorites list with Pluto TV channels on your channel list.\n\nEverything will be updated automatically every 5 hours."), type=MessageBox.TYPE_INFO, timeout=10)
@@ -579,9 +598,11 @@ class PlutoTV(Screen):
 			txt = _("Last:") + updated
 			self["key_green"].text = _("Update LiveTV Bouquet")
 			self["updated"].text = _("LiveTV Bouquet last updated:") + updated
+			self["key_blue"].text = _("Remove LiveTV Bouquet")
 		else:
 			self["key_green"].text = _("Create LiveTV Bouquet")
 			self["updated"].text = ""
+			self["key_blue"].text = ""
 
 	def exit(self, *args, **kwargs):
 		if self.history:
@@ -617,7 +638,8 @@ class PlutoSetup(Setup):
 
 	def createSetup(self):
 		configList = []
-		configList.append((_("Country"), config.plugins.plutotv.country, _("Select the country that the VoD list will be created for.")))
+		configList.append((_("VoD country"), config.plugins.plutotv.country, _("Select the country that the VoD list will be created for.")))
+		configList.append((_("LiveTV country"), config.plugins.plutotv.live_tv_country, _("Select the country that the LiveTV bouquet will be created for.") + " " + _("The bouquet will need recreating.")))
 		configList.append((_("Stop service"), config.plugins.plutotv.stopservice, _("Stop currently playing service when entering PlutoTV plugin.")))
 		self["config"].list = configList
 

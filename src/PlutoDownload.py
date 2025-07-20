@@ -45,60 +45,121 @@ import time
 import uuid
 from urllib.parse import quote
 
-BASE_API      = "https://api.pluto.tv"
-GUIDE_URL     = "https://service-channels.clusters.pluto.tv/v1/guide?start=%s&stop=%s&%s"
-BASE_GUIDE    = BASE_API + "/v2/channels?start=%s&stop=%s&%s"
-BASE_LINEUP   = BASE_API + "/v2/channels.json?%s"
-BASE_VOD      = BASE_API + "/v3/vod/categories?includeItems=true&deviceType=web&%s"
-SEASON_VOD    = BASE_API + "/v3/vod/series/%s/seasons?includeItems=true&deviceType=web&%s"
-BASE_CLIPS    = BASE_API + "/v2/episodes/%s/clips.json"
 
-RequestCache = {}
+class PlutoRequest:
+	X_FORWARDS = {
+		"us": "185.236.200.172",
+	#	"gb": "185.86.151.11",
+		"gb": "185.199.220.58",
+		"de": "85.214.132.117",
+		"es": "88.26.241.248",
+		"ca": "192.206.151.131",
+		"br": "177.47.27.205",
+		"mx": "200.68.128.83",
+		"fr": "176.31.84.249",
+		"at": "2.18.68.0",
+		"ch": "5.144.31.245",
+		"it": "5.133.48.0",
+		"ar": "104.103.238.0",
+		"co": "181.204.4.74",
+		"cr": "138.122.24.0",
+		"pe": "190.42.0.0",
+		"ve": "103.83.193.0",
+		"cl": "161.238.0.0",
+		"bo": "186.27.64.0",
+		"sv": "190.53.128.0",
+		"gt": "190.115.2.25",
+		"hn": "181.115.0.0",
+		"ni": "186.76.0.0",
+		"pa": "168.77.0.0",
+		"uy": "179.24.0.0",
+		"ec": "181.196.0.0",
+		"py": "177.250.0.0",
+		"do": "152.166.0.0",
+		"se": "185.39.146.168",
+		"dk": "80.63.84.58",
+		"no": "84.214.150.146",
+		"au": "144.48.37.140",
+		"fi": "85.194.236.0",
+	}
 
-sid1_hex = str(uuid.uuid1().hex)
-deviceId1_hex = str(uuid.uuid4().hex)
+	BASE_API = "https://api.pluto.tv"
+	GUIDE_URL = "https://service-channels.clusters.pluto.tv/v1/guide?start=%s&stop=%s&%s"
+	BASE_GUIDE = BASE_API + "/v2/channels?start=%s&stop=%s&%s"
+	BASE_LINEUP = BASE_API + "/v2/channels.json?%s"
+	BASE_VOD = BASE_API + "/v3/vod/categories?includeItems=true&deviceType=web&%s"
+	SEASON_VOD = BASE_API + "/v3/vod/series/%s/seasons?includeItems=true&deviceType=web&%s"
+	# BASE_CLIPS = BASE_API + "/v2/episodes/%s/clips.json"
+
+	sid1_hex = str(uuid.uuid1().hex)
+	deviceId1_hex = str(uuid.uuid4().hex)
+
+	def __init__(self):
+		self.requestCache = {}
+
+	def getURL(self, url, param=None, header={"User-agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"}, life=60 * 15):
+		if param is None:
+			param = {}
+		now = time.time()
+		region = config.plugins.plutotv.country.value
+		if not region in self.requestCache:
+			self.requestCache[region] = {}
+		if url in self.requestCache[region] and self.requestCache[region][url][1] > (now - life):
+			return self.requestCache[region][url][0]
+		try:
+			req = requests.get(url, param, headers=header, timeout=2)
+			req.raise_for_status()
+			response = req.json()
+			req.close()
+			self.requestCache[region][url] = (response, now)
+			return response
+		except Exception: 
+			return {}
+
+	def getUUID(self):
+		return self.sid1_hex, self.deviceId1_hex
+	
+	def getUUIDstr(self):
+		return "sid=%s&deviceId=%s" % self.getUUID()
+	
+	def buildHeader(self, country=None):
+		ip = self.X_FORWARDS.get(country or config.plugins.plutotv.country.value)
+		return {
+			"Accept": "application/json, text/javascript, */*; q=0.01",
+			"Host": "api.pluto.tv",
+			"Connection": "keep-alive",
+			"Referer": "http://pluto.tv/",
+			"Origin": "http://pluto.tv",
+			"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0",
+		} | ({"X-Forwarded-For": ip} if ip else {})
+
+	#def getClips(self, epid):
+	#	return self.getURL(self.BASE_CLIPS % (epid), header=self.buildHeader(), life=60 * 60)
+
+	def getVOD(self, epid, country=None):
+		return self.getURL(self.SEASON_VOD % (epid, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60)
+
+	def getOndemand(self, country=None):
+		return self.getURL(self.BASE_VOD % (self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60)
+
+	def getChannels(self, country=None):
+		return self.getURL(self.BASE_LINEUP % (self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60)
+
+	def getFullGuide(self, start, stop, country=None):
+		return self.getURL(self.GUIDE_URL % (start, stop, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60)
+	
+	def getBaseGuide(self, start, stop, country=None):
+		return self.getURL(self.BASE_GUIDE % (start, stop, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60)
 
 
-X_FORWARDS = {
-	"us": "185.236.200.172",
-#	"gb": "185.86.151.11",
-	"gb": "185.199.220.58",
-	"de": "85.214.132.117",
-	"es": "88.26.241.248",
-	"ca": "192.206.151.131",
-	"br": "177.47.27.205",
-	"mx": "200.68.128.83",
-	"fr": "176.31.84.249",
-	"at": "2.18.68.0",
-	"ch": "5.144.31.245",
-	"it": "5.133.48.0",
-	"ar": "104.103.238.0",
-	"co": "181.204.4.74",
-	"cr": "138.122.24.0",
-	"pe": "190.42.0.0",
-	"ve": "103.83.193.0",
-	"cl": "161.238.0.0",
-	"bo": "186.27.64.0",
-	"sv": "190.53.128.0",
-	"gt": "190.115.2.25",
-	"hn": "181.115.0.0",
-	"ni": "186.76.0.0",
-	"pa": "168.77.0.0",
-	"uy": "179.24.0.0",
-	"ec": "181.196.0.0",
-	"py": "177.250.0.0",
-	"do": "152.166.0.0",
-	"se": "185.39.146.168",
-	"dk": "80.63.84.58",
-	"no": "84.214.150.146",
-	"au": "144.48.37.140",
-	"fi": "85.194.236.0",
-}
+plutoRequest = PlutoRequest()
 
-COUNTRY_NAMES = {cc: country[0].split("(")[0].strip() for country in sorted(ISO3166) if (cc := country[1].lower()) in X_FORWARDS}  # ISO3166 is sorted in English, sorted will sort by locale.
+
+COUNTRY_NAMES = {cc: country[0].split("(")[0].strip() for country in sorted(ISO3166) if (cc := country[1].lower()) in PlutoRequest.X_FORWARDS}  # ISO3166 is sorted in English, sorted will sort by locale.
 
 config.plugins.plutotv = ConfigSubsection()
 config.plugins.plutotv.country = ConfigSelection(default="local", choices=[("local", _("Local"))] + list(COUNTRY_NAMES.items()))
+config.plugins.plutotv.live_tv_country = ConfigSelection(default="same_as_vod", choices=[("local", _("Local")), ("same_as_vod", _("Same as VoD"))] + list(COUNTRY_NAMES.items()))
 
 def getPiconPath():
 	try:
@@ -176,59 +237,12 @@ class DownloadComponent:
 		self.callbackList.remove(callback)
 
 
-def getUUID():
-	return sid1_hex, deviceId1_hex
-
-def getUUIDstr():
-	return "sid=%s&deviceId=%s" % getUUID()
-
-def buildHeader():
-	return {
-		"Accept": "application/json, text/javascript, */*; q=0.01",
-		"Host": "api.pluto.tv",
-		"Connection": "keep-alive",
-		"Referer": "http://pluto.tv/",
-		"Origin": "http://pluto.tv",
-		"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0",
-	} | ({"X-Forwarded-For": X_FORWARDS[config.plugins.plutotv.country.value]} if config.plugins.plutotv.country.value in X_FORWARDS else {})
-
-#def getClips(epid):
-#	return getURL(BASE_CLIPS % (epid), header=buildHeader(), life=60 * 60)
-
-def getVOD(epid):
-	return getURL(SEASON_VOD % (epid, getUUIDstr()), header=buildHeader(), life=60 * 60)
-
-def getOndemand():
-	return getURL(BASE_VOD % (getUUIDstr()), header=buildHeader(), life=60 * 60)
-
-def getChannels():
-	return sorted(getURL(BASE_LINEUP % (getUUIDstr()), header=buildHeader(), life=60 * 60), key=lambda x: x["number"])
-
-def getURL(url, param=None, header={"User-agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"}, life=60 * 15):
-	if param is None:
-		param = {}
-	now = time.time()
-	region = config.plugins.plutotv.country.value
-	if not region in RequestCache:
-		RequestCache[region] = {}
-	if url in RequestCache[region] and RequestCache[region][url][1] > (now - life):
-		return RequestCache[region][url][0]
-	try:
-		req = requests.get(url, param, headers=header, timeout=2)
-		req.raise_for_status()
-		response = req.json()
-		req.close()
-		RequestCache[region][url] = (response, now)
-		return response
-	except Exception: 
-		return {}
-
 class PlutoDownloadBase():
 	downloadActive = False  # shared between instances
+	bouquetfile = "userbouquet.pluto_tv.tv"
+	bouquetname = "Pluto TV"
 
 	def __init__(self, silent=False):
-		self.bouquetfile = "userbouquet.pluto_tv.tv"
-		self.bouquetname = "Pluto TV"
 		self.channelsList = {}
 		self.guideList = {}
 		self.categories = []
@@ -250,7 +264,7 @@ class PlutoDownloadBase():
 		self.channelsList.clear()  # DownloadSilent is a running instance so clear anything from previous run
 		self.guideList.clear()  # DownloadSilent is a running instance so clear anything from previous run
 		self.categories.clear()  # DownloadSilent is a running instance so clear anything from previous run
-		channels = getChannels()
+		channels = sorted(plutoRequest.getChannels(PlutoDownloadBase.country()), key=lambda x: x["number"])
 		guide = self.getGuidedata()
 		[self.buildM3U(channel) for channel in channels]
 		self.total = len(channels)
@@ -415,11 +429,15 @@ class PlutoDownloadBase():
 		start = (datetime.datetime.fromtimestamp(PlutoDownloadBase.getLocalTime()).strftime("%Y-%m-%dT%H:00:00Z"))
 		stop = (datetime.datetime.fromtimestamp(PlutoDownloadBase.getLocalTime()) + datetime.timedelta(hours=24)).strftime("%Y-%m-%dT%H:00:00Z")
 	
-		if full:
-			return getURL(GUIDE_URL %(start, stop, getUUIDstr()), header=buildHeader(), life=60 * 60)
+		if full:  # this is never used
+			return plutoRequest.getFullGuide(start, stop, PlutoDownloadBase.country())
 		else:
-			return sorted((getURL(BASE_GUIDE %(start, stop, getUUIDstr()), header=buildHeader(), life=60 * 60)), key=lambda x: x["number"])
+			return sorted(plutoRequest.getBaseGuide(start, stop, PlutoDownloadBase.country()), key=lambda x: x["number"])
 
+	@staticmethod
+	def country():
+		return config.plugins.plutotv.country.value if config.plugins.plutotv.live_tv_country.value == "same_as_vod" else config.plugins.plutotv.live_tv_country.value
+	
 	@staticmethod
 	def getLocalTime():
 		offset = datetime.datetime.utcnow() - datetime.datetime.now()
@@ -476,7 +494,7 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 		self["progress"].setValue(0)
 		self.TimerTemp = eTimer()
 		self.TimerTemp.callback.append(self.download)
-		self.TimerTemp.startLongTimer(1)
+		self.TimerTemp.start(10, True)
 
 	def salir(self):
 			stri = _("The download is in progress. Exit now?")
