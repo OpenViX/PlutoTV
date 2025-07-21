@@ -469,22 +469,22 @@ class PlutoDownloadBase():
 class PlutoDownload(PlutoDownloadBase, Screen):
 	skin = f"""
 		<screen name="PlutoTVdownload" position="60,60" resolution="1920,1080" size="615,195" title="PlutoTV EPG Download" flags="wfNoBorder" backgroundColor="#ff000000">
-		<ePixmap position="0,0" size="615,195" pixmap="{PLUGIN_FOLDER}/images/backgroundHD.png" zPosition="-1" alphatest="blend" />
-		<ePixmap position="15,55" size="120,80" pixmap="{PLUGIN_FOLDER}/plutotv.png" scale="1" alphatest="blend" transparent="1" zPosition="10"/>
+		<eLabel position="0,0" size="615,195" zPosition="-1" alphatest="blend" backgroundColor="#2d101214" cornerRadius="8" widgetBorderWidth="2" widgetBorderColor="#2d888888"/>
+		<ePixmap position="15,80" size="120,45" pixmap="{PLUGIN_FOLDER}/plutotv.png" scale="1" alphatest="blend" transparent="1" zPosition="10"/>
 		<widget name="action" halign="left" valign="center" position="13,9" size="433,30" font="Regular;25" foregroundColor="#dfdfdf" transparent="1" backgroundColor="#000000" borderColor="black" borderWidth="1" noWrap="1"/>
 		<widget name="progress" position="150,97" size="420,12" borderWidth="0" backgroundColor="#1143495b" pixmap="{PLUGIN_FOLDER}/images/progresoHD.png" zPosition="2" alphatest="blend" />
-		<eLabel name="fondoprogreso" position="150,97" size="420,12" backgroundColor="#102a3b58" />
+		<eLabel name="progess_background" position="150,97" size="420,12" backgroundColor="#102a3b58" />
 		<widget name="wait" valign="center" halign="center" position="150,63" size="420,30" font="Regular;22" foregroundColor="#dfdfdf" transparent="1" backgroundColor="#000000" borderColor="black" borderWidth="1" noWrap="1"/>
 		<widget name="status" halign="center" valign="center" position="150,120" size="420,30" font="Regular;24" foregroundColor="#ffffff" transparent="1" backgroundColor="#000000" borderColor="black" borderWidth="1" noWrap="1"/>
 		</screen>"""
 
-	def __init__(self, session, args = ""):
+	def __init__(self, session):
 		self.session = session
 		Screen.__init__(self, session)
 		PlutoDownloadBase.__init__(self)
 		self.total = 0
 		self["progress"] = ProgressBar()
-		self["action"] = Label(_("EPG Download: %s Pluto TV") % args)
+		self["action"] = Label(_("EPG Download: Pluto TV"))
 		self["wait"] = Label("")
 		self["status"] = Label(_("Please wait..."))
 		self["actions"] = ActionMap(["OkCancelActions"], {"cancel": self.salir}, -1)
