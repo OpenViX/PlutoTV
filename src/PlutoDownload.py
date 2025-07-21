@@ -2,10 +2,10 @@
 #
 #   Copyright (C) 2021 Team OpenSPA
 #   https://openspa.info/
-# 
+#
 #   SPDX-License-Identifier: GPL-2.0-or-later
 #   See LICENSES/README.md for more information.
-# 
+#
 #   PlutoTV is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
 #   the Free Software Foundation, either version 3 of the License, or
@@ -22,23 +22,20 @@
 
 # for localized messages
 from . import _
-from .Variables import TIMER_FILE, PLUGIN_FOLDER
+from .Variables import TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, BOUQUET_NAME
 
 from Components.ActionMap import ActionMap
 from Components.config import ConfigSelection, ConfigSubsection, config
 from Components.Label import Label
 from Components.ProgressBar import ProgressBar
-from Screens.ChannelSelection import service_types_tv
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 from Tools.CountryCodes import ISO3166
 from Tools.Directories import fileExists
 
-from enigma import eConsoleAppContainer, eDVBDB, eEPGCache, eServiceCenter, eServiceReference, eTimer
+from enigma import eConsoleAppContainer, eDVBDB, eEPGCache, eTimer
 
-import collections
 import datetime
-import json
 import os
 import requests
 import time
@@ -49,7 +46,7 @@ from urllib.parse import quote
 class PlutoRequest:
 	X_FORWARDS = {
 		"us": "185.236.200.172",
-	#	"gb": "185.86.151.11",
+		# "gb": "185.86.151.11",
 		"gb": "185.199.220.58",
 		"de": "85.214.132.117",
 		"es": "88.26.241.248",
@@ -102,7 +99,7 @@ class PlutoRequest:
 			param = {}
 		now = time.time()
 		region = config.plugins.plutotv.country.value
-		if not region in self.requestCache:
+		if region not in self.requestCache:
 			self.requestCache[region] = {}
 		if url in self.requestCache[region] and self.requestCache[region][url][1] > (now - life):
 			return self.requestCache[region][url][0]
@@ -113,15 +110,15 @@ class PlutoRequest:
 			req.close()
 			self.requestCache[region][url] = (response, now)
 			return response
-		except Exception: 
+		except Exception:
 			return {}
 
 	def getUUID(self):
 		return self.sid1_hex, self.deviceId1_hex
-	
+
 	def getUUIDstr(self):
 		return "sid=%s&deviceId=%s" % self.getUUID()
-	
+
 	def buildHeader(self, country=None):
 		ip = self.X_FORWARDS.get(country or config.plugins.plutotv.country.value)
 		return {
@@ -133,8 +130,8 @@ class PlutoRequest:
 			"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0",
 		} | ({"X-Forwarded-For": ip} if ip else {})
 
-	#def getClips(self, epid):
-	#	return self.getURL(self.BASE_CLIPS % (epid), header=self.buildHeader(), life=60 * 60)
+	# def getClips(self, epid):
+	# 	return self.getURL(self.BASE_CLIPS % (epid), header=self.buildHeader(), life=60 * 60)
 
 	def getVOD(self, epid, country=None):
 		return self.getURL(self.SEASON_VOD % (epid, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60)
@@ -147,7 +144,7 @@ class PlutoRequest:
 
 	def getFullGuide(self, start, stop, country=None):
 		return self.getURL(self.GUIDE_URL % (start, stop, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60)
-	
+
 	def getBaseGuide(self, start, stop, country=None):
 		return self.getURL(self.BASE_GUIDE % (start, stop, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60)
 
@@ -160,6 +157,7 @@ COUNTRY_NAMES = {cc: country[0].split("(")[0].strip() for country in sorted(ISO3
 config.plugins.plutotv = ConfigSubsection()
 config.plugins.plutotv.country = ConfigSelection(default="local", choices=[("local", _("Local"))] + list(COUNTRY_NAMES.items()))
 config.plugins.plutotv.live_tv_country = ConfigSelection(default="same_as_vod", choices=[("local", _("Local")), ("same_as_vod", _("Same as VoD"))] + list(COUNTRY_NAMES.items()))
+
 
 def getPiconPath():
 	try:
@@ -203,11 +201,11 @@ class DownloadComponent:
 			self.filename = filename
 		else:
 			self.filename = cmd.split("/")[-1]
-		
+
 		number = self.ref.split(":")
 		if len(number[3]) > 3:
 			png = os.path.join(PLUGIN_FOLDER, "plutotv.png")
-			rute = "cp " + png + " " +  filename
+			rute = "cp " + png + " " + filename
 		else:
 			rute = rute + " " + cmd
 
@@ -239,8 +237,6 @@ class DownloadComponent:
 
 class PlutoDownloadBase():
 	downloadActive = False  # shared between instances
-	bouquetfile = "userbouquet.pluto_tv.tv"
-	bouquetname = "Pluto TV"
 
 	def __init__(self, silent=False):
 		self.channelsList = {}
@@ -251,11 +247,11 @@ class PlutoDownloadBase():
 		self.silent = silent
 		PlutoDownloadBase.downloadActive = False
 		self.epgcache = eEPGCache.getInstance()
-	
+
 	def download(self):
 		if PlutoDownloadBase.downloadActive:
 			if not self.silent:
-				res = self.session.openWithCallback(self.close, MessageBox, _("A silent download is in progress."), MessageBox.TYPE_INFO, timeout=30)
+				self.session.openWithCallback(self.close, MessageBox, _("A silent download is in progress."), MessageBox.TYPE_INFO, timeout=30)
 			print("[PlutoDownload] A silent download is in progress.")
 			return
 
@@ -323,94 +319,92 @@ class PlutoDownloadBase():
 						events_tuple = tuple(iterator)
 						self.epgcache.importEvents(ref + ":https%3a//.m3u8", events_tuple)
 
-
 					logo = channel[3]
 					self.down = DownloadComponent(param + 1, ref, name, not self.silent)
 					self.down.addCallback(self.updateprogress)
 
 					self.down.startCmd(logo)
 				else:
-					eDVBDB.getInstance().addOrUpdateBouquet(self.bouquetname, self.bouquetfile, self.bouquet, False)  # place at bottom if not exists
+					eDVBDB.getInstance().addOrUpdateBouquet(BOUQUET_NAME, BOUQUET_FILE, self.bouquet, False)  # place at bottom if not exists
 					os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
 					open(TIMER_FILE, "w").write(str(time.time()))
 					self.salirok()
 		self.start()
 
 	def buildGuide(self, event):
-		#(title, summary, start, duration, genre)
+		# (title, summary, start, duration, genre)
 		_id = event.get("_id", "")
 		if len(_id) == 0:
 			return
 		self.guideList[_id] = []
 		timelines = event.get("timelines", [])
 		chplot = (event.get("description", "") or event.get("summary", ""))
-	
-	
+
 		for item in timelines:
-			episode    = (item.get("episode", {})   or item)
-			series     = (episode.get("series", {}) or item)
-			epdur      = int(episode.get("duration", "0") or "0") // 1000 # in seconds
-			epgenre    = episode.get("genre", "")
-			etype      = series.get("type", "film")
-	
+			episode = (item.get("episode", {}) or item)
+			series = (episode.get("series", {}) or item)
+			epdur = int(episode.get("duration", "0") or "0") // 1000  # in seconds
+			epgenre = episode.get("genre", "")
+			etype = series.get("type", "film")
+
 			genre = self.convertgenre(epgenre)
-	
+
 			offset = datetime.datetime.now() - datetime.datetime.utcnow()
 			try:
-				starttime  = self.strpTime(item["start"]) + offset
+				starttime = self.strpTime(item["start"]) + offset
 			except:
 				return
 			start = time.mktime(starttime.timetuple())
-			title      = (item.get("title", ""))
-			tvplot     = (series.get("description", "") or series.get("summary", "") or chplot)
-			epnumber   = episode.get("number", 0)
-			epseason   = episode.get("season", 0)
-			epname     = (episode["name"])
-			epmpaa     = episode.get("rating", "")
-			epplot     = (episode.get("description", "") or tvplot or epname)
-	
-			if len(epmpaa) > 0 and not "Not Rated" in epmpaa:
+			title = (item.get("title", ""))
+			tvplot = (series.get("description", "") or series.get("summary", "") or chplot)
+			epnumber = episode.get("number", 0)
+			epseason = episode.get("season", 0)
+			epname = (episode["name"])
+			epmpaa = episode.get("rating", "")
+			epplot = (episode.get("description", "") or tvplot or epname)
+
+			if len(epmpaa) > 0 and "Not Rated" not in epmpaa:
 				epplot = "(%s). %s" % (epmpaa, epplot)
-	
+
 			noserie = "live film"
 			if epseason > 0 and epnumber > 0 and etype not in noserie:
 				title = title + " (T%d)" % epseason
 				epplot = "T%d Ep.%d %s" % (epseason, epnumber, epplot)
-	
+
 			if epdur > 0:
 				self.guideList[_id].append((title, epplot, start, epdur, genre))
 
 	def buildM3U(self, channel):
-		#(number, _id, name, logo, url)
+		# (number, _id, name, logo, url)
 		logo = (channel.get("logo", {}).get("path", None) or None)
-		logo = (channel.get("solidLogoPNG", {}).get("path", None) or None) #blancos
+		logo = (channel.get("solidLogoPNG", {}).get("path", None) or None)  # blancos
 		logo = (channel.get("colorLogoPNG", {}).get("path", None) or None)
 		group = channel.get("category", "")
 		_id = channel["_id"]
-	
-		urls  = channel.get("stitched", {}).get("urls", [])
-		if len(urls) == 0: 
+
+		urls = channel.get("stitched", {}).get("urls", [])
+		if len(urls) == 0:
 			return False
-	
+
 		if isinstance(urls, list):
-			urls = [url["url"].replace("deviceType=&", "deviceType=web&").replace("deviceMake=&", "deviceMake=Chrome&").replace("deviceModel=&", "deviceModel=Chrome&").replace("appName=&", "appName=web&") for url in urls if url["type"].lower() == "hls"][0] # todo select quality
-	
+			urls = [url["url"].replace("deviceType=&", "deviceType=web&").replace("deviceMake=&", "deviceMake=Chrome&").replace("deviceModel=&", "deviceModel=Chrome&").replace("appName=&", "appName=web&") for url in urls if url["type"].lower() == "hls"][0]  # todo select quality
+
 		if group not in list(self.channelsList.keys()):
 			self.channelsList[group] = []
 			self.categories.append(group)
-	
+
 		if int(channel["number"]) == 0:
 			number = _id[-4:].upper()
 		else:
 			number = channel["number"]
-	
+
 		self.channelsList[group].append((str(number), _id, channel["name"], logo, urls))
 		return True
 
 	@staticmethod
 	def convertgenre(genre):
 		id = 0
-		if genre  in ("Classics", "Romance", "Thrillers", "Horror") or "Sci-Fi" in genre or "Action" in genre:
+		if genre in ("Classics", "Romance", "Thrillers", "Horror") or "Sci-Fi" in genre or "Action" in genre:
 			id = 0x10
 		elif "News" in genre or "Educational" in genre:
 			id = 0x20
@@ -428,7 +422,7 @@ class PlutoDownloadBase():
 	def getGuidedata(full=False):
 		start = (datetime.datetime.fromtimestamp(PlutoDownloadBase.getLocalTime()).strftime("%Y-%m-%dT%H:00:00Z"))
 		stop = (datetime.datetime.fromtimestamp(PlutoDownloadBase.getLocalTime()) + datetime.timedelta(hours=24)).strftime("%Y-%m-%dT%H:00:00Z")
-	
+
 		if full:  # this is never used
 			return plutoRequest.getFullGuide(start, stop, PlutoDownloadBase.country())
 		else:
@@ -437,7 +431,7 @@ class PlutoDownloadBase():
 	@staticmethod
 	def country():
 		return config.plugins.plutotv.country.value if config.plugins.plutotv.live_tv_country.value == "same_as_vod" else config.plugins.plutotv.live_tv_country.value
-	
+
 	@staticmethod
 	def getLocalTime():
 		offset = datetime.datetime.utcnow() - datetime.datetime.now()
@@ -461,7 +455,7 @@ class PlutoDownloadBase():
 
 	def updateProgressBar(self, param):
 		pass
-	
+
 	def updateStatus(self, name):
 		pass
 
@@ -497,9 +491,8 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 		self.TimerTemp.start(10, True)
 
 	def salir(self):
-			stri = _("The download is in progress. Exit now?")
-			self.session.openWithCallback(self.salirok, MessageBox, stri, MessageBox.TYPE_YESNO, timeout = 30)
-			
+		self.session.openWithCallback(self.salirok, MessageBox, _("The download is in progress. Exit now?"), MessageBox.TYPE_YESNO, timeout=30)
+
 	def salirok(self, answer=True):
 		if answer:
 			Silent.stop()
@@ -522,6 +515,7 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 
 	def noCategories(self):
 		self.session.openWithCallback(self.salirok, MessageBox, _("There is no data, it is possible that Pluto TV is not available in your country"), type=MessageBox.TYPE_ERROR, timeout=10)
+
 
 class DownloadSilent(PlutoDownloadBase):
 	def __init__(self):

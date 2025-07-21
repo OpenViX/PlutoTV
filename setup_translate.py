@@ -4,7 +4,7 @@ import os
 
 
 class build_trans(cmd.Command):
-	description = 'Compile .po files into .mo files'
+	description = "Compile .po files into .mo files"
 
 	def initialize_options(self):
 		pass
@@ -21,20 +21,20 @@ class build_trans(cmd.Command):
 		po_folder = os.path.join(repo_root, "po")
 		PluginLanguageDomain = "PlutoTV"  # same as in __init__.py
 		for lang in [f[:-3] for f in os.listdir(po_folder) if f.endswith(".po")]:
-			os.makedirs((destdir := os.path.join(src_folder, 'locale', lang, 'LC_MESSAGES')), exist_ok=True)
+			os.makedirs((destdir := os.path.join(src_folder, "locale", lang, "LC_MESSAGES")), exist_ok=True)
 			command = "%s '%s' -o '%s'" % (tool, os.path.join(po_folder, "%s.po" % lang), os.path.join(destdir, "%s.mo" % PluginLanguageDomain))
 			if os.system(command) != 0:
 				raise Exception("Failed to compile: " + command)
 
 
 class build(_build):
-	sub_commands = _build.sub_commands + [('build_trans', None)]
+	sub_commands = _build.sub_commands + [("build_trans", None)]
 
 	def run(self):
 		_build.run(self)
 
 
 cmdclass = {
-	'build': build,
-	'build_trans': build_trans,
+	"build": build,
+	"build_trans": build_trans,
 }

@@ -2,10 +2,10 @@
 #
 #   Copyright (C) 2021 Team OpenSPA
 #   https://openspa.info/
-# 
+#
 #   SPDX-License-Identifier: GPL-2.0-or-later
 #   See LICENSES/README.md for more information.
-# 
+#
 #   PlutoTV is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
 #   the Free Software Foundation, either version 3 of the License, or
@@ -23,8 +23,8 @@
 
 # for localized messages
 from . import _, PluginLanguageDomain
-from .PlutoDownload import plutoRequest, PlutoDownload, Silent  # , getClips 
-from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, DATA_FOLDER, PLUGIN_FOLDER
+from .PlutoDownload import plutoRequest, PlutoDownload, Silent  # , getClips
+from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, DATA_FOLDER, PLUGIN_FOLDER, BOUQUET_FILE
 
 from skin import applySkinFactor, fonts, parameters
 
@@ -82,7 +82,7 @@ class ResumePoints():
 	def setResumePoint(self, session, sid):
 		service = session.nav.getCurrentService()
 		ref = session.nav.getCurrentlyPlayingServiceOrGroup()
-		if service and ref: 
+		if service and ref:
 			seek = service.seek()
 			if seek:
 				pos = seek.getPlayPosition()
@@ -97,7 +97,7 @@ class ResumePoints():
 		last = None
 		length = 0
 		if sid and (entry := self.resumePointCache.get(sid)):
-			entry[0] = int(time()) # update LRU timestamp
+			entry[0] = int(time())  # update LRU timestamp
 			last = entry[1]
 			length = entry[2]
 		return last, length
@@ -133,9 +133,9 @@ class DownloadPosters:
 
 		rute = "wget"
 		filename = os.path.join(DATA_FOLDER, name)
-		
+
 		rute = rute + " -O " + filename
-		
+
 		self.filename = filename
 		rute = rute + " " + url
 
@@ -172,7 +172,7 @@ class PlutoList(MenuList):
 		self.cine_png = LoadPixmap(x if fileExists(x := resolveFilename(SCOPE_CURRENT_SKIN, "icons/pluto_cine.png")) else f"{PLUGIN_FOLDER}/images/cine.png")
 		self.cine_half_png = LoadPixmap(x if fileExists(x := resolveFilename(SCOPE_CURRENT_SKIN, "icons/pluto_cine_half.png")) else f"{PLUGIN_FOLDER}/images/cine_half.png")
 		self.cine_end_png = LoadPixmap(x if fileExists(x := resolveFilename(SCOPE_CURRENT_SKIN, "icons/pluto_cine_end.png")) else f"{PLUGIN_FOLDER}/images/cine_end.png")
-		
+
 		MenuList.__init__(self, list, content=eListboxPythonMultiContent)
 		font = fonts.get("PlutoList", applySkinFactor("Regular", 19, 35))
 		self.l.setFont(0, gFont(font[0], font[1]))
@@ -194,11 +194,11 @@ class PlutoList(MenuList):
 				sid = _id
 			last, length = resumePointsInstance.getResumePoint(sid)
 			if last:
-				if self.cine_half_png and (last > 900000) and (not length  or (last < length - 900000)):
+				if self.cine_half_png and (last > 900000) and (not length or (last < length - 900000)):
 					png = self.cine_half_png
 				elif self.cine_end_png and last >= length - 900000:
 					png = self.cine_end_png
-	
+
 		res.append(MultiContentEntryText(pos=applySkinFactor(45, 7), size=applySkinFactor(533, 35), font=0, text=name))
 		if png:
 			res.append(MultiContentEntryPixmapAlphaBlend(pos=applySkinFactor(7, 9), size=applySkinFactor(20, 20), png=png, flags=BT_SCALE | BT_KEEP_ASPECT_RATIO))
@@ -221,12 +221,12 @@ class PlutoTV(Screen):
 		<widget name="info" position="1282,235" size="517,678" font="Regular;28" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
 		<eLabel position="770,956" size="30,85" backgroundColor="#00FF0000" cornerRadius="7"/>
 		<eLabel position="1100,956" size="30,85" backgroundColor="#00ffff00" cornerRadius="7"/>
-		<eLabel position="1430,956" size="30,85" backgroundColor="#0032cd32" cornerRadius="7"/> 
+		<eLabel position="1430,956" size="30,85" backgroundColor="#0032cd32" cornerRadius="7"/>
 		<widget source="key_red" render="Label" position="810,956" size="290,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
 		<widget source="key_yellow" render="Label" position="1140,956" size="290,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
-		<widget source="key_green" render="Label" position="1470,956" size="425,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" /> 
-		<widget source="updated" render="Label" position="1140,1042" size="755,36" halign="center" valign="right" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" /> 
-		<ePixmap pixmap="buttons/key_menu.png" alphatest="blend" position="70,979" size="52,38" backgroundColor="#00000000" transparent="1" zPosition="2"/> 
+		<widget source="key_green" render="Label" position="1470,956" size="425,85" valign="center" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
+		<widget source="updated" render="Label" position="1140,1042" size="755,36" halign="center" valign="right" font="Regular; 30" backgroundColor="#00000000" foregroundColor="#00ffffff" />
+		<ePixmap pixmap="buttons/key_menu.png" alphatest="blend" position="70,979" size="52,38" backgroundColor="#00000000" transparent="1" zPosition="2"/>
 		</screen>"""
 
 	def __init__(self, session):
@@ -314,7 +314,7 @@ class PlutoTV(Screen):
 			self.vinfo = info
 			picname = film[0] + ".jpg"
 			pic = film[6]
-			if len(picname)>5:
+			if len(picname) > 5:
 				self["poster"].hide()
 				down = DownloadPosters("poster")
 				down.addCallback(self.downloadPostersCallback)
@@ -352,24 +352,28 @@ class PlutoTV(Screen):
 		try:
 			x, y = self["poster"].getSize()
 			picture = image.replace("\n", "").replace("\r", "")
-			self.picload.setPara((x,
-			 y,
-			 self.sc[0],
-			 self.sc[1],
-			 0,
-			 0,
-			 "#00000000"))
-			l = self.picload.PictureData.get()
-			del l[:]
-			l.append(self.showImage)
+			self.picload.setPara(
+				(
+					x,
+					y,
+					self.sc[0],
+					self.sc[1],
+					0,
+					0,
+					"#00000000"
+				)
+			)
+			pictureData = self.picload.PictureData.get()
+			del pictureData[:]
+			pictureData.append(self.showImage)
 			self.picload.startDecode(picture)
 		except Exception as ex:
 			print("[PlutoScreen] decodeImage, ERROR", ex)
 
-	def showImage(self, picInfo = None):
+	def showImage(self, picInfo=None):
 		try:
 			ptr = self.picload.getData()
-			if ptr != None:
+			if ptr is not None:
 				self["poster"].setPixmap(ptr.__deref__())
 				self["poster"].show()
 		except Exception as ex:
@@ -391,37 +395,36 @@ class PlutoTV(Screen):
 
 	def buildlist(self, category):
 		name = category["name"].encode("utf-8")
-		self.lvod[name]=[]
+		self.lvod[name] = []
 
 		self.menu.append(name)
 		items = category.get("items", [])
 		for item in items:
-			#film = (_id, name, summary, genre, rating, duration, poster, image, type)
+			# film = (_id, name, summary, genre, rating, duration, poster, image, type)
 			itemid = item.get("_id", "")
 			if len(itemid) == 0:
 				continue
-			film = {}
 			itemname = item.get("name", "").encode("utf-8")
 			itemsummary = item.get("summary", "").encode("utf-8")
 			itemgenre = item.get("genre", "").encode("utf-8")
 			itemrating = item.get("rating", "").encode("utf-8")
-			itemduration = int(item.get("duration", "0") or "0") // 1000 #in seconds
+			itemduration = int(item.get("duration", "0") or "0") // 1000  # in seconds
 			itemimgs = item.get("covers", [])
 			itemtype = item.get("type", "")
 			seasons = len(item.get("seasonsNumbers", []))
 			itemimage = ""
 			itemposter = ""
 			urls = item.get("stitched", {}).get("urls", [])
-			if len(urls)>0:
+			if len(urls) > 0:
 				url = urls[0].get("url", "")
 			else:
 				url = ""
 
-			if len(itemimgs)>2:
+			if len(itemimgs) > 2:
 				itemimage = itemimgs[2].get("url", "")
-			if len(itemimgs)>1 and len(itemimage) == 0:
+			if len(itemimgs) > 1 and len(itemimage) == 0:
 				itemimage = itemimgs[1].get("url", "")
-			if len(itemimgs)>0:
+			if len(itemimgs) > 0:
 				itemposter = itemimgs[0].get("url", "")
 			self.lvod[name].append((itemid, itemname, itemsummary, itemgenre, itemrating, itemduration, itemposter, itemimage, itemtype, url, seasons))
 
@@ -429,40 +432,38 @@ class PlutoTV(Screen):
 		self.chapters.clear()
 		items = chapters.get("seasons", [])
 		for item in items:
-				chs = item.get("episodes", [])
-				for ch in chs:
-					season = str(ch.get("season", 0))
-					if season != "0":
-						if season not in self.chapters:
-							self.chapters[season] = []
-						_id = ch.get("_id", "")
-						name = ch.get("name", "").encode("utf-8")
-						number = str(ch.get("number", 0))
-						summary = ch.get("description", "").encode("utf-8")
-						rating = ch.get("rating", "")
-						duration = ch.get("duration", 0) // 1000
-						genre = ch.get("genre", "").encode("utf-8")
-						imgs = ch.get("covers", [])
-						urls = ch.get("stitched", {}).get("urls", [])
-						if len(urls)>0:
-							url = urls[0].get("url", "")
+			chs = item.get("episodes", [])
+			for ch in chs:
+				season = str(ch.get("season", 0))
+				if season != "0":
+					if season not in self.chapters:
+						self.chapters[season] = []
+					_id = ch.get("_id", "")
+					name = ch.get("name", "").encode("utf-8")
+					number = str(ch.get("number", 0))
+					summary = ch.get("description", "").encode("utf-8")
+					rating = ch.get("rating", "")
+					duration = ch.get("duration", 0) // 1000
+					genre = ch.get("genre", "").encode("utf-8")
+					imgs = ch.get("covers", [])
+					urls = ch.get("stitched", {}).get("urls", [])
+					if len(urls) > 0:
+						url = urls[0].get("url", "")
 
-						itemimage = ""
-						itemposter = ""
-						if len(imgs)>2:
-							itemimage = imgs[2].get("url", "")
-						if len(imgs)>1 and len(itemimage) == 0:
-							itemimage = imgs[1].get("url", "")
-						if len(imgs)>0:
-							itemposter = imgs[0].get("url", "")
-						self.chapters[season].append((_id, name, number, summary, rating, duration, genre, itemposter, itemimage, url))
-
+					itemimage = ""
+					itemposter = ""
+					if len(imgs) > 2:
+						itemimage = imgs[2].get("url", "")
+					if len(imgs) > 1 and len(itemimage) == 0:
+						itemimage = imgs[1].get("url", "")
+					if len(imgs) > 0:
+						itemposter = imgs[0].get("url", "")
+					self.chapters[season].append((_id, name, number, summary, rating, duration, genre, itemposter, itemimage, url))
 
 	def getSelection(self):
 		index = self["feedlist"].getSelectionIndex()
 		data = self["feedlist"].getCurrent()[0]
 		return index, data[0], data[1], data[2]
-
 
 	def action(self):
 		self.lastAction = self.action
@@ -563,14 +564,14 @@ class PlutoTV(Screen):
 				self["poster"].hide()
 
 	def playVOD(self, name, id, url=None):
-#		data = plutoRequest.getClips(id)[0]
-#		if not data: return
-#		url   = (data.get("url", "") or data.get("sources", [])[0].get("file", ""))
-#		url = url.replace("siloh.pluto.tv", "dh7tjojp94zlv.cloudfront.net") ## Hack for siloh.pluto.tv not access - siloh.pluto.tv redirect to dh7tjojp94zlv.cloudfront.net
+		# data = plutoRequest.getClips(id)[0]
+		# if not data: return
+		# url   = (data.get("url", "") or data.get("sources", [])[0].get("file", ""))
+		# url = url.replace("siloh.pluto.tv", "dh7tjojp94zlv.cloudfront.net") ## Hack for siloh.pluto.tv not access - siloh.pluto.tv redirect to dh7tjojp94zlv.cloudfront.net
 		if url:
 			uid, did = plutoRequest.getUUID()
 			url = url.replace("deviceModel=", "deviceModel=web").replace("deviceMake=", "deviceMake=chrome") + uid
-			
+
 		if url and name:
 			string = "4097:0:0:0:0:0:0:0:0:0:%s:%s" % (quote(url), quote(name))
 			reference = eServiceReference(string)
@@ -584,7 +585,7 @@ class PlutoTV(Screen):
 		if self["key_blue"].text:
 			Silent.stop()
 			from enigma import eDVBDB
-			eDVBDB.getInstance().removeBouquet(PlutoDownload.bouquetfile)
+			eDVBDB.getInstance().removeBouquet(BOUQUET_FILE)
 			self.updatebutton()
 
 	def endupdateLive(self, ret=None):
@@ -595,7 +596,6 @@ class PlutoTV(Screen):
 		if fileExists(TIMER_FILE) and "pluto_tv" in bouquets:
 			last = float(open(TIMER_FILE, "r").read().replace("\n", "").replace("\r", ""))
 			updated = strftime(" %x %H:%M", localtime(int(last)))
-			txt = _("Last:") + updated
 			self["key_green"].text = _("Update LiveTV Bouquet")
 			self["updated"].text = _("LiveTV Bouquet last updated:") + updated
 			self["key_blue"].text = _("Remove LiveTV Bouquet")
@@ -670,21 +670,22 @@ class Pluto_Player(MoviePlayer):
 		MoviePlayer.__init__(self, self.session, service, sid)
 		self.end = False
 		self.started = False
-		self.skinName = ["MoviePlayer" ]
+		self.skinName = ["MoviePlayer"]
 
-		self.__event_tracker = ServiceEventTracker(screen=self, eventmap=
-			{
+		self.__event_tracker = ServiceEventTracker(
+			screen=self,
+			eventmap={
 				iPlayableService.evStart: self.__serviceStarted,
-#				iPlayableService.evBuffering: self.__serviceStarted,
-#				iPlayableService.evVideoSizeChanged: self.__serviceStarted,
+				# iPlayableService.evBuffering: self.__serviceStarted,
+				# iPlayableService.evVideoSizeChanged: self.__serviceStarted,
 				iPlayableService.evEOF: self.__evEOF,
-			})
-
+			}
+		)
 
 		self["actions"] = ActionMap(["MoviePlayerActions", "OkActions"],
 		{
 			"leavePlayerOnExit": self.leavePlayer,
-			"leavePlayer": self.leavePlayer, 
+			"leavePlayer": self.leavePlayer,
 			"ok": self.toggleShow,
 		}, -3)
 		self.session.nav.playService(self.mpservice)
@@ -705,17 +706,16 @@ class Pluto_Player(MoviePlayer):
 		service = self.session.nav.getCurrentService()
 		seekable = service.seek()
 		self.started = True
-		ref = self.session.nav.getCurrentlyPlayingServiceReference()
 		last, length = resumePointsInstance.getResumePoint(self.id)
 		if last is None or seekable is None:
 			return
 		length = seekable.getLength() or (None, 0)
 		print("seekable.getLength() returns:", length)
 		# Hmm, this implies we don"t resume if the length is unknown...
-		if (last > 900000) and (not length[1]  or (last < length[1] - 900000)):
+		if (last > 900000) and (not length[1] or (last < length[1] - 900000)):
 			self.last = last
-			l = last / 90000
-			Notifications.AddNotificationWithCallback(self.playLastCB, MessageBox, _("Do you want to resume this playback?") + "\n" + (_("Resume position at %s") % ("%d:%02d:%02d" % (l/3600, l%3600/60, l%60))), timeout=10, default="yes" in config.usage.on_movie_start.value)
+			last /= 90000
+			Notifications.AddNotificationWithCallback(self.playLastCB, MessageBox, _("Do you want to resume this playback?") + "\n" + (_("Resume position at %s") % ("%d:%02d:%02d" % (last / 3600, last % 3600 / 60, last % 60))), timeout=10, default="yes" in config.usage.on_movie_start.value)
 
 	def playLastCB(self, answer):
 		if answer is True and self.last:
@@ -726,7 +726,7 @@ class Pluto_Player(MoviePlayer):
 		self.is_closing = True
 		resumePointsInstance.setResumePoint(self.session, self.id)
 		self.close()
-			
+
 	def leavePlayerConfirmed(self, answer):
 		pass
 
@@ -745,7 +745,7 @@ def system(session, **kwargs):
 
 def Plugins(**kwargs):
 	return [
-		PluginDescriptor(name=_("PlutoTV"), where = PluginDescriptor.WHERE_PLUGINMENU, icon="plutotv.png", description=_("View video on demand and download a bouquet of live tv channels"), fnc=system, needsRestart=True),
-		PluginDescriptor(name=_("Download PlutoTV bouquet, picons and EPG"), where = PluginDescriptor.WHERE_EXTENSIONSMENU, fnc=Download_PlutoTV, needsRestart=True),
-		PluginDescriptor(name=_("Silently download PlutoTV"), where = PluginDescriptor.WHERE_SESSIONSTART, fnc=autostart),
+		PluginDescriptor(name=_("PlutoTV"), where=PluginDescriptor.WHERE_PLUGINMENU, icon="plutotv.png", description=_("View video on demand and download a bouquet of live tv channels"), fnc=system, needsRestart=True),
+		PluginDescriptor(name=_("Download PlutoTV bouquet, picons and EPG"), where=PluginDescriptor.WHERE_EXTENSIONSMENU, fnc=Download_PlutoTV, needsRestart=True),
+		PluginDescriptor(name=_("Silently download PlutoTV"), where=PluginDescriptor.WHERE_SESSIONSTART, fnc=autostart),
 	]
