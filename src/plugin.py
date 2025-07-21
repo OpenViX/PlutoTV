@@ -56,7 +56,7 @@ from time import time, strftime, gmtime, localtime
 from urllib.parse import quote
 
 
-config.plugins.plutotv.stopservice = ConfigYesNo(default=True)
+config.plugins.plutotv.stopservice = ConfigYesNo(default=False)
 
 
 class ResumePoints():
