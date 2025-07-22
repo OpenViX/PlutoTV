@@ -328,7 +328,7 @@ class PlutoDownloadBase():
 					eDVBDB.getInstance().addOrUpdateBouquet(BOUQUET_NAME, BOUQUET_FILE, self.bouquet, False)  # place at bottom if not exists
 					os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
 					open(TIMER_FILE, "w").write(str(time.time()))
-					self.salirok()
+					self.exitOk()
 		self.start()
 
 	def buildGuide(self, event):
@@ -450,7 +450,7 @@ class PlutoDownloadBase():
 	def stop(self):
 		pass
 
-	def salirok(self, answer=True):
+	def exitOk(self, answer=True):
 		pass
 
 	def updateProgressBar(self, param):
@@ -481,7 +481,7 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 		self["action"] = Label(_("EPG Download: Pluto TV"))
 		self["wait"] = Label("")
 		self["status"] = Label(_("Please wait..."))
-		self["actions"] = ActionMap(["OkCancelActions"], {"cancel": self.salir}, -1)
+		self["actions"] = ActionMap(["OkCancelActions"], {"cancel": self.exit}, -1)
 		self.onFirstExecBegin.append(self.init)
 
 	def init(self):
@@ -490,10 +490,10 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 		self.TimerTemp.callback.append(self.download)
 		self.TimerTemp.start(10, True)
 
-	def salir(self):
-		self.session.openWithCallback(self.salirok, MessageBox, _("The download is in progress. Exit now?"), MessageBox.TYPE_YESNO, timeout=30)
+	def exit(self):
+		self.session.openWithCallback(self.exitOk, MessageBox, _("The download is in progress. Exit now?"), MessageBox.TYPE_YESNO, timeout=30)
 
-	def salirok(self, answer=True):
+	def exitOk(self, answer=True):
 		if answer:
 			Silent.stop()
 			Silent.start()
@@ -514,7 +514,7 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 		self["status"].text = _("Waiting for Channel: ") + name
 
 	def noCategories(self):
-		self.session.openWithCallback(self.salirok, MessageBox, _("There is no data, it is possible that Pluto TV is not available in your country"), type=MessageBox.TYPE_ERROR, timeout=10)
+		self.session.openWithCallback(self.exitOk, MessageBox, _("There is no data, it is possible that Pluto TV is not available in your country"), type=MessageBox.TYPE_ERROR, timeout=10)
 
 
 class DownloadSilent(PlutoDownloadBase):
