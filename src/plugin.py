@@ -214,10 +214,10 @@ class PlutoTV(Screen):
 			<convert type="ClockToText">Format:%H:%M</convert>
 		</widget>
 		<widget name="loading" position="560,440" size="800,200" font="Regular; 60" backgroundColor="#00000000" transparent="0" zPosition="10" halign="center" valign="center" />
-		<widget name="playlist" position="400,48" size="1150,55" font="Regular; 40" backgroundColor="#00000000" transparent="1" foregroundColor="#00ffff00" zPosition="2" halign="center" />
+		<widget source="playlist" render="Label" position="400,48" size="1150,55" font="Regular; 40" backgroundColor="#00000000" transparent="1" foregroundColor="#00ffff00" zPosition="2" halign="center" />
 		<widget name="feedlist" position="70,170" size="615,728" scrollbarMode="showOnDemand" enableWrapAround="1" transparent="1" zPosition="5" foregroundColor="#00ffffff" backgroundColorSelected="#00ff0063" backgroundColor="#00000000" />
 		<widget name="poster" position="772,235" size="483,675" zPosition="3" alphatest="blend" />
-		<widget name="vtitle" position="775,180" size="1027,48" font="Regular; 37" backgroundColor="#00000000" foregroundColor="#00ffff00" transparent="1" />
+		<widget source="vtitle"  render="Label" position="775,180" size="1027,48" font="Regular; 37" backgroundColor="#00000000" foregroundColor="#00ffff00" transparent="1" />
 		<widget name="info" position="1282,235" size="517,678" font="Regular;28" backgroundColor="#00000000" foregroundColor="#00ffffff" transparent="1" />
 		<eLabel position="770,956" size="30,85" backgroundColor="#00FF0000" cornerRadius="7"/>
 		<eLabel position="1100,956" size="30,85" backgroundColor="#00ffff00" cornerRadius="7"/>
@@ -237,9 +237,9 @@ class PlutoTV(Screen):
 
 		self.titlemenu = _("VOD Menu")
 		self["feedlist"] = PlutoList([])
-		self["playlist"] = Label(self.titlemenu)
+		self["playlist"] = StaticText(self.titlemenu)
 		self["loading"] = Label(_("Loading data... Please wait"))
-		self["vtitle"] = Label()
+		self["vtitle"] = StaticText()
 		self.vinfo = ""
 		self.description = ""
 		self.eptitle = ""
