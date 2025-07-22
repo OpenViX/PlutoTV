@@ -323,8 +323,7 @@ class PlutoTV(Screen):
 		elif __type == "seasons":
 			self.eptitle = ""
 			self.epinfo = ""
-			if self.numSeasons == 1:
-				print("DEBUG calling lastAction")
+			if self.numSeasons == 1:  # if numSeans == 1 skip displaying the seasons level and go directly to the next level.
 				# Fix a timing issue. Calling self.lastAction directly results in the title for the previous level being displayed.
 				self.lastActionTimer = eTimer()
 				self.lastActionTimer.callback.append(self.lastAction)
@@ -471,7 +470,6 @@ class PlutoTV(Screen):
 		menu = []
 		menuact = self.titlemenu
 		if __type == "menu":
-			print("DEBUG in menu")
 			self.films = self.lvod[self.menu[index]]
 			for x in self.films:
 				sname = x[1].decode("utf-8")
@@ -485,7 +483,6 @@ class PlutoTV(Screen):
 			self.title = _("PlutoTV") + " - " + self.titlemenu
 			self.history.append((index, menuact))
 		if __type == "series":
-			print("DEBUG in series")
 			chapters = plutoRequest.getVOD(_id)
 			self.buildchapters(chapters)
 			for key in list(self.chapters.keys()):
@@ -500,7 +497,6 @@ class PlutoTV(Screen):
 			self.history.append((index, menuact))
 			self["feedlist"].moveToIndex(0)
 		if __type == "seasons":
-			print("DEBUG in seasons")
 			for key in self.chapters[_id]:
 				sname = key[1].decode("utf-8")
 				stype = "episode"
@@ -508,7 +504,6 @@ class PlutoTV(Screen):
 				menu.append(self["feedlist"].listentry(_("Episode") + " " + key[2] + ". " + sname, stype, _id, key[0]))
 			self["feedlist"].setList(menu)
 			self.titlemenu = menuact.split(" - ")[0] + " - " + name
-			print("DEBUG self.titlemenu", self.titlemenu)
 			self["playlist"].text = self.titlemenu
 			self.title = _("PlutoTV") + " - " + self.titlemenu
 			self.history.append((index, menuact))
@@ -521,7 +516,6 @@ class PlutoTV(Screen):
 			url = film[9]
 			self.playVOD(name, sid, url)
 		if __type == "episode":
-			print("DEBUG in episode")
 			film = self.chapters[_id][index]
 			sid = film[0]
 			name = film[1]
