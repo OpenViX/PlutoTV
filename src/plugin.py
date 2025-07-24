@@ -384,14 +384,14 @@ class PlutoTV(Screen):
 		ondemand = plutoRequest.getOndemand()
 		categories = ondemand.get("categories", [])
 		if not categories:
-			self.session.openWithCallback(self.exit, MessageBox, _("There is no data, it is possible that Pluto TV is not available in your country"), type=MessageBox.TYPE_ERROR, timeout=10)
+			self.session.open(MessageBox, _("There is no data, it is possible that Pluto TV is not available in your country"), type=MessageBox.TYPE_ERROR, timeout=10)
 		else:
 			[self.buildlist(category) for category in categories]
 			list = []
 			for key in self.menu:
 				list.append(self["feedlist"].listentry(key.decode("utf-8"), "menu", ""))
 			self["feedlist"].setList(list)
-			self["loading"].hide()
+		self["loading"].hide()
 
 	def buildlist(self, category):
 		name = category["name"].encode("utf-8")
