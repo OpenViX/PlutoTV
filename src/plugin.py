@@ -462,12 +462,15 @@ class PlutoTV(Screen):
 
 	def getSelection(self):
 		index = self["feedlist"].getSelectionIndex()
-		data = self["feedlist"].getCurrent()[0]
-		return index, data[0], data[1], data[2]
+		if current := self["feedlist"].getCurrent():
+			data = current[0]
+			return index, data[0], data[1], data[2]
 
 	def action(self):
+		if not (selection := self.getSelection()):
+			return
 		self.lastAction = self.action
-		index, name, __type, _id = self.getSelection()
+		index, name, __type, _id = selection
 		menu = []
 		menuact = self.titlemenu
 		if __type == "menu":
@@ -525,8 +528,10 @@ class PlutoTV(Screen):
 			self.playVOD(name, sid, url)
 
 	def back(self):
+		if not (selection := self.getSelection()):
+			return
 		self.lastAction = self.back
-		index, name, __type, _id = self.getSelection()
+		index, name, __type, _id = selection
 		menu = []
 		if self.history:
 			hist = self.history[-1][0]
