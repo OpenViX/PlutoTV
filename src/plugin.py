@@ -57,9 +57,6 @@ from time import time, strftime, gmtime, localtime
 from urllib.parse import quote
 
 
-config.plugins.plutotv.stopservice = ConfigYesNo(default=False)
-
-
 class ResumePoints():
 	# We can't use the ResumePoints class built in to enigma because
 	# the id's are hashes, not srefs, so would be deleted on reboot.
@@ -267,12 +264,6 @@ class PlutoTV(Screen):
 
 		self.sc = AVSwitch().getFramebufferScale()
 		self.picload = ePicLoad()
-
-		if config.plugins.plutotv.stopservice.value:
-			self.oldService = self.session.nav.getCurrentlyPlayingServiceReference()
-			self.session.nav.stopService()
-		else:
-			self.oldService = None
 
 		self["actions"] = ActionMap(["SetupActions", "ColorActions", "InfobarChannelSelection", "MenuActions"],
 		{
@@ -612,8 +603,6 @@ class PlutoTV(Screen):
 		if self.history:
 			self.back()
 		else:
-			if self.oldService:
-				self.session.nav.playService(self.oldService)
 			self.close()
 
 	def MDB(self):
@@ -647,8 +636,6 @@ class PlutoSetup(Setup):
 		for n in range(1, 6):
 			if n == 1 or getattr(config.plugins.plutotv, "live_tv_country" + str(n - 1)).value:
 				configList.append((_("LiveTV bouquet %s" % n), getattr(config.plugins.plutotv, "live_tv_country" + str(n)), _("Country for which LiveTV bouquet %s will be created.") % n))
-		configList.append(("---",))
-		configList.append((_("Stop service"), config.plugins.plutotv.stopservice, _("Stop currently playing service when entering PlutoTV plugin.")))
 		self["config"].list = configList
 
 	def keyCancel(self):
