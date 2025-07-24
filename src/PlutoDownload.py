@@ -19,7 +19,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with PlutoTV.  If not, see <http://www.gnu.org/licenses/>.
 #
-#   Credit to Billy2011 @ vuplus-support.org for the X_FORWARDS idea 
+#   Credit to Billy2011 @ vuplus-support.org for the X_FORWARDS idea
 #   and dictionary from his version of the plugin distributed under
 #   the same license.
 #
