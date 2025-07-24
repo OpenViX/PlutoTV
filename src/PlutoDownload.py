@@ -37,6 +37,7 @@ from enigma import eConsoleAppContainer, eDVBDB, eEPGCache, eTimer
 
 import datetime
 import os
+import re
 import requests
 import time
 import uuid
@@ -46,7 +47,6 @@ from urllib.parse import quote
 class PlutoRequest:
 	X_FORWARDS = {
 		"us": "185.236.200.172",
-		# "gb": "185.86.151.11",
 		"gb": "185.199.220.58",
 		"de": "85.214.132.117",
 		"es": "88.26.241.248",
@@ -94,21 +94,21 @@ class PlutoRequest:
 	def __init__(self):
 		self.requestCache = {}
 
-	def getURL(self, url, param=None, header={"User-agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"}, life=60 * 15):
+	def getURL(self, url, param=None, header={"User-agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"}, life=60 * 15, country=None):
 		if param is None:
 			param = {}
 		now = time.time()
-		region = config.plugins.plutotv.country.value
-		if region not in self.requestCache:
-			self.requestCache[region] = {}
-		if url in self.requestCache[region] and self.requestCache[region][url][1] > (now - life):
-			return self.requestCache[region][url][0]
+		country = country or config.plugins.plutotv.country.value
+		if country not in self.requestCache:
+			self.requestCache[country] = {}
+		if url in self.requestCache[country] and self.requestCache[country][url][1] > (now - life):
+			return self.requestCache[country][url][0]
 		try:
 			req = requests.get(url, param, headers=header, timeout=2)
 			req.raise_for_status()
 			response = req.json()
 			req.close()
-			self.requestCache[region][url] = (response, now)
+			self.requestCache[country][url] = (response, now)
 			return response
 		except Exception:
 			return {}
@@ -130,23 +130,23 @@ class PlutoRequest:
 			"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0",
 		} | ({"X-Forwarded-For": ip} if ip else {})
 
-	# def getClips(self, epid):
-	# 	return self.getURL(self.BASE_CLIPS % (epid), header=self.buildHeader(), life=60 * 60)
+	# def getClips(self, epid, country=None):
+	# 	return self.getURL(self.BASE_CLIPS % (epid), header=self.buildHeader(), life=60 * 60, country=country))
 
 	def getVOD(self, epid, country=None):
-		return self.getURL(self.SEASON_VOD % (epid, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60)
+		return self.getURL(self.SEASON_VOD % (epid, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60, country=country)
 
 	def getOndemand(self, country=None):
-		return self.getURL(self.BASE_VOD % (self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60)
+		return self.getURL(self.BASE_VOD % self.getUUIDstr(), header=self.buildHeader(country), life=60 * 60, country=country)
 
 	def getChannels(self, country=None):
-		return self.getURL(self.BASE_LINEUP % (self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60)
+		return self.getURL(self.BASE_LINEUP % self.getUUIDstr(), header=self.buildHeader(country), life=60 * 60, country=country)
 
 	def getFullGuide(self, start, stop, country=None):
-		return self.getURL(self.GUIDE_URL % (start, stop, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60)
+		return self.getURL(self.GUIDE_URL % (start, stop, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60, country=country)
 
 	def getBaseGuide(self, start, stop, country=None):
-		return self.getURL(self.BASE_GUIDE % (start, stop, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60)
+		return self.getURL(self.BASE_GUIDE % (start, stop, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60, country=country)
 
 
 plutoRequest = PlutoRequest()
@@ -154,9 +154,26 @@ plutoRequest = PlutoRequest()
 
 COUNTRY_NAMES = {cc: country[0].split("(")[0].strip() for country in sorted(ISO3166) if (cc := country[1].lower()) in PlutoRequest.X_FORWARDS}  # ISO3166 is sorted in English, sorted will sort by locale.
 
+
 config.plugins.plutotv = ConfigSubsection()
 config.plugins.plutotv.country = ConfigSelection(default="local", choices=[("local", _("Local"))] + list(COUNTRY_NAMES.items()))
-config.plugins.plutotv.live_tv_country = ConfigSelection(default="same_as_vod", choices=[("local", _("Local")), ("same_as_vod", _("Same as VoD"))] + list(COUNTRY_NAMES.items()))
+
+
+def getselectedcountries(skip=0):
+	return [getattr(config.plugins.plutotv, "live_tv_country" + str(n)).value for n in range(1, 6) if n != skip]
+
+
+def autocountry(configElement):
+	for n in range(1, 5):
+		getattr(config.plugins.plutotv, "live_tv_country" + str(n)).setChoices([x for x in [("", _("None"))] + list(COUNTRY_NAMES.items()) if x[0] and x[0] not in getselectedcountries(n) or not x[0] and not getattr(config.plugins.plutotv, "live_tv_country" + str(n + 1)).value])
+	config.plugins.plutotv.live_tv_country5.setChoices([x for x in [("", _("None"))] + list(COUNTRY_NAMES.items()) if x[0] and x[0] not in getselectedcountries(5) or not x[0]])
+
+
+for n in range(1, 6):
+	setattr(config.plugins.plutotv, "live_tv_country" + str(n), ConfigSelection(default="", choices=[("", _("None"))] + list(COUNTRY_NAMES.items())))
+
+for n in range(1, 6):
+	getattr(config.plugins.plutotv, "live_tv_country" + str(n)).addNotifier(autocountry, initial_call=n == 5)
 
 
 def getPiconPath():
@@ -242,11 +259,18 @@ class PlutoDownloadBase():
 		self.channelsList = {}
 		self.guideList = {}
 		self.categories = []
-		self.bouquet = []
 		self.state = 1  # this is a hack
 		self.silent = silent
 		PlutoDownloadBase.downloadActive = False
 		self.epgcache = eEPGCache.getInstance()
+
+	def cc(self):
+		countries = [x for x in getselectedcountries() if x] or [config.plugins.plutotv.country.value]
+		from enigma import eDVBDB
+		# Delete bouquets of not selected countries. Don't delete the bouquets we are updating so they retain their current position.
+		eDVBDB.getInstance().removeBouquet(re.escape(BOUQUET_FILE) % ("(?!%s).+" % "|".join(countries)))
+		for cc in countries:
+			yield cc
 
 	def download(self):
 		if PlutoDownloadBase.downloadActive:
@@ -254,14 +278,31 @@ class PlutoDownloadBase():
 				self.session.openWithCallback(self.close, MessageBox, _("A silent download is in progress."), MessageBox.TYPE_INFO, timeout=30)
 			print("[PlutoDownload] A silent download is in progress.")
 			return
+		self.ccGenerator = self.cc()
+		self.manager()
 
+	def manager(self):
 		PlutoDownloadBase.downloadActive = True
-		self.stop()  # is this really necessary
-		self.channelsList.clear()  # DownloadSilent is a running instance so clear anything from previous run
-		self.guideList.clear()  # DownloadSilent is a running instance so clear anything from previous run
-		self.categories.clear()  # DownloadSilent is a running instance so clear anything from previous run
-		channels = sorted(plutoRequest.getChannels(PlutoDownloadBase.country()), key=lambda x: x["number"])
-		guide = self.getGuidedata()
+		if cc := next(self.ccGenerator, None):
+			self.downloadBouquet(cc)
+		else:
+			self.channelsList.clear()
+			self.guideList.clear()
+			self.categories.clear()
+			PlutoDownloadBase.downloadActive = False
+			self.ccGenerator = None
+			self.exitOk()
+
+	def downloadBouquet(self, cc):
+		self.bouquet = []
+		self.bouquetCC = cc
+		self.stop()
+		self.channelsList.clear()
+		self.guideList.clear()
+		self.categories.clear()
+		self.updateAction(cc)
+		channels = sorted(plutoRequest.getChannels(cc), key=lambda x: x["number"])
+		guide = self.getGuidedata(cc)
 		[self.buildM3U(channel) for channel in channels]
 		self.total = len(channels)
 
@@ -276,7 +317,6 @@ class PlutoDownloadBase():
 			self.chitem = 0
 			[self.buildGuide(event) for event in guide]
 			self.updateprogress(event=DownloadComponent.EVENT_DONE, param=0)
-		PlutoDownloadBase.downloadActive = False
 
 	def updateprogress(self, event=None, param=0, ref=None, name=None):
 		if hasattr(self, "state") and self.state == 1:  # hack for exit before end
@@ -325,10 +365,10 @@ class PlutoDownloadBase():
 
 					self.down.startCmd(logo)
 				else:
-					eDVBDB.getInstance().addOrUpdateBouquet(BOUQUET_NAME, BOUQUET_FILE, self.bouquet, False)  # place at bottom if not exists
+					eDVBDB.getInstance().addOrUpdateBouquet(BOUQUET_NAME % COUNTRY_NAMES[self.bouquetCC], BOUQUET_FILE % self.bouquetCC, self.bouquet, False)  # place at bottom if not exists
 					os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
 					open(TIMER_FILE, "w").write(str(time.time()))
-					self.exitOk()
+					self.manager()
 		self.start()
 
 	def buildGuide(self, event):
@@ -419,18 +459,14 @@ class PlutoDownloadBase():
 		return id
 
 	@staticmethod
-	def getGuidedata(full=False):
+	def getGuidedata(cc, full=False):
 		start = (datetime.datetime.fromtimestamp(PlutoDownloadBase.getLocalTime()).strftime("%Y-%m-%dT%H:00:00Z"))
 		stop = (datetime.datetime.fromtimestamp(PlutoDownloadBase.getLocalTime()) + datetime.timedelta(hours=24)).strftime("%Y-%m-%dT%H:00:00Z")
 
 		if full:  # this is never used
-			return plutoRequest.getFullGuide(start, stop, PlutoDownloadBase.country())
+			return plutoRequest.getFullGuide(start, stop, cc)
 		else:
-			return sorted(plutoRequest.getBaseGuide(start, stop, PlutoDownloadBase.country()), key=lambda x: x["number"])
-
-	@staticmethod
-	def country():
-		return config.plugins.plutotv.country.value if config.plugins.plutotv.live_tv_country.value == "same_as_vod" else config.plugins.plutotv.live_tv_country.value
+			return sorted(plutoRequest.getBaseGuide(start, stop, cc), key=lambda x: x["number"])
 
 	@staticmethod
 	def getLocalTime():
@@ -459,10 +495,13 @@ class PlutoDownloadBase():
 	def updateStatus(self, name):
 		pass
 
+	def updateAction(self, cc=""):
+		pass
+
 
 class PlutoDownload(PlutoDownloadBase, Screen):
 	skin = f"""
-		<screen name="PlutoTVdownload" position="60,60" resolution="1920,1080" size="615,195" title="PlutoTV EPG Download" flags="wfNoBorder" backgroundColor="#ff000000">
+		<screen name="PlutoTVdownload" position="60,60" resolution="1920,1080" size="615,195" flags="wfNoBorder" backgroundColor="#ff000000">
 		<eLabel position="0,0" size="615,195" zPosition="-1" alphatest="blend" backgroundColor="#2d101214" cornerRadius="8" widgetBorderWidth="2" widgetBorderColor="#2d888888"/>
 		<ePixmap position="15,80" size="120,45" pixmap="{PLUGIN_FOLDER}/plutotv.png" scale="1" alphatest="blend" transparent="1" zPosition="10"/>
 		<widget name="action" halign="left" valign="center" position="13,9" size="433,30" font="Regular;25" foregroundColor="#dfdfdf" transparent="1" backgroundColor="#000000" borderColor="black" borderWidth="1" noWrap="1"/>
@@ -475,14 +514,19 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 	def __init__(self, session):
 		self.session = session
 		Screen.__init__(self, session)
+		self.title = _("PlutoTV updating")
 		PlutoDownloadBase.__init__(self)
 		self.total = 0
 		self["progress"] = ProgressBar()
-		self["action"] = Label(_("EPG Download: Pluto TV"))
+		self["action"] = Label()
+		self.updateAction()
 		self["wait"] = Label("")
 		self["status"] = Label(_("Please wait..."))
 		self["actions"] = ActionMap(["OkCancelActions"], {"cancel": self.exit}, -1)
 		self.onFirstExecBegin.append(self.init)
+
+	def updateAction(self, cc=""):
+		self["action"].text = _("Updating: Pluto TV %s") % cc.upper()
 
 	def init(self):
 		self["progress"].setValue(0)

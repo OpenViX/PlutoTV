@@ -29,5 +29,5 @@ TIMER_FILE = path.join(CONFIG_FOLDER, "Plutotv.timer")
 RESUMEPOINTS_FILE = path.join(CONFIG_FOLDER, "resumepoints.pkl")
 PLUGIN_FOLDER = path.dirname(path.realpath(__file__))
 DATA_FOLDER = getDataFolder()
-BOUQUET_FILE = "userbouquet.pluto_tv.tv"
-BOUQUET_NAME = "Pluto TV"
+BOUQUET_FILE = "userbouquet.pluto_tv_%s.tv"
+BOUQUET_NAME = "Pluto TV (%s)"

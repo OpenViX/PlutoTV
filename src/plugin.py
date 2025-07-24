@@ -23,7 +23,7 @@
 
 # for localized messages
 from . import _, PluginLanguageDomain
-from .PlutoDownload import plutoRequest, PlutoDownload, Silent  # , getClips
+from .PlutoDownload import plutoRequest, PlutoDownload, Silent, getselectedcountries  # , getClips
 from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, DATA_FOLDER, PLUGIN_FOLDER, BOUQUET_FILE
 
 from skin import applySkinFactor, fonts, parameters
@@ -52,6 +52,7 @@ from enigma import BT_KEEP_ASPECT_RATIO, BT_SCALE, eConsoleAppContainer, eListbo
 import os
 from gettext import dngettext
 from pickle import load as pickle_load, dump as pickle_dump
+import re
 from time import time, strftime, gmtime, localtime
 from urllib.parse import quote
 
@@ -579,7 +580,7 @@ class PlutoTV(Screen):
 		if self["key_blue"].text:
 			Silent.stop()
 			from enigma import eDVBDB
-			eDVBDB.getInstance().removeBouquet(BOUQUET_FILE)
+			eDVBDB.getInstance().removeBouquet(re.escape(BOUQUET_FILE) % ".*")
 			self.updatebutton()
 
 	def endupdateLive(self, ret=None):
@@ -587,11 +588,15 @@ class PlutoTV(Screen):
 
 	def updatebutton(self, ret=None):
 		bouquets = open("/etc/enigma2/bouquets.tv", "r").read()
-		if fileExists(TIMER_FILE) and "pluto_tv" in bouquets:
+		if fileExists(TIMER_FILE) and all(((BOUQUET_FILE % cc) in bouquets) for cc in [x for x in getselectedcountries() if x]):
 			last = float(open(TIMER_FILE, "r").read().replace("\n", "").replace("\r", ""))
 			updated = strftime(" %x %H:%M", localtime(int(last)))
 			self["key_green"].text = _("Update LiveTV Bouquet")
 			self["updated"].text = _("LiveTV Bouquet last updated:") + updated
+			self["key_blue"].text = _("Remove LiveTV Bouquet")
+		elif "pluto_tv" in bouquets:
+			self["key_green"].text = _("Update LiveTV Bouquet")
+			self["updated"].text = _("LiveTV Bouquet needs updating. Press GREEN.")
 			self["key_blue"].text = _("Remove LiveTV Bouquet")
 		else:
 			self["key_green"].text = _("Create LiveTV Bouquet")
@@ -633,13 +638,18 @@ class PlutoSetup(Setup):
 	def createSetup(self):
 		configList = []
 		configList.append((_("VoD country"), config.plugins.plutotv.country, _("Select the country that the VoD list will be created for.")))
-		configList.append((_("LiveTV country"), config.plugins.plutotv.live_tv_country, _("Select the country that the LiveTV bouquet will be created for.") + " " + _("The bouquet will need recreating.")))
+		configList.append(("---",))
+		for n in range(1, 6):
+			if n == 1 or getattr(config.plugins.plutotv, "live_tv_country" + str(n - 1)).value:
+				configList.append((_("LiveTV bouquet %s" % n), getattr(config.plugins.plutotv, "live_tv_country" + str(n)), _("Country for which LiveTV bouquet %s will be created.") % n))
+		configList.append(("---",))
 		configList.append((_("Stop service"), config.plugins.plutotv.stopservice, _("Stop currently playing service when entering PlutoTV plugin.")))
 		self["config"].list = configList
 
 	def keyCancel(self):
 		for x in self['config'].list:
-			x[1].cancel()
+			if len(x) > 1:
+				x[1].cancel()
 		self.exit()
 
 	def closeRecursive(self):
