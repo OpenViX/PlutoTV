@@ -296,6 +296,7 @@ class PlutoDownloadBase():
 			PlutoDownloadBase.downloadActive = False
 			self.ccGenerator = None
 			self.exitOk()
+			self.start()
 
 	def downloadBouquet(self, cc):
 		self.bouquet = []
@@ -373,7 +374,6 @@ class PlutoDownloadBase():
 					os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
 					open(TIMER_FILE, "w").write(str(time.time()))
 					self.manager()
-		self.start()
 
 	def buildGuide(self, event):
 		# (title, summary, start, duration, genre)
