@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-21 01:49+0200\n"
+"POT-Creation-Date: 2025-07-25 17:20+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,161 +18,164 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: ../src/plugin.py:312
+#: ../src/plugin.py:356
 #, python-format
 msgid "%s Season available"
 msgid_plural "%s Seasons available"
 msgstr[0] ""
 msgstr[1] ""
 
-#: ../src/PlutoDownload.py:258
+#: ../src/PlutoDownload.py:282
 msgid "A silent download is in progress."
 msgstr ""
 
-#: ../src/plugin.py:603
+#: ../src/plugin.py:695
+#, python-format
+msgid "Country for which LiveTV bouquet %s will be created."
+msgstr ""
+
+#: ../src/plugin.py:650
 msgid "Create LiveTV Bouquet"
 msgstr ""
 
-#: ../src/plugin.py:718
+#: ../src/plugin.py:697
+msgid "Data location"
+msgstr ""
+
+#: ../src/plugin.py:773
 msgid "Do you want to resume this playback?"
 msgstr ""
 
-#: ../src/plugin.py:749
+#: ../src/plugin.py:804
 msgid "Download PlutoTV bouquet, picons and EPG"
 msgstr ""
 
-#: ../src/PlutoDownload.py:487
-#, python-format
-msgid "EPG Download: %s Pluto TV"
-msgstr ""
-
-#: ../src/plugin.py:507
+#: ../src/plugin.py:551
 msgid "Episode"
 msgstr ""
 
-#: ../src/plugin.py:247
+#: ../src/plugin.py:294
 msgid "Exit"
 msgstr ""
 
-#: ../src/plugin.py:250
+#: ../src/plugin.py:297
 msgid "IMDb Search"
 msgstr ""
 
-#: ../src/plugin.py:598
-msgid "Last:"
-msgstr ""
-
-#: ../src/plugin.py:600
+#: ../src/plugin.py:643
 msgid "LiveTV Bouquet last updated:"
 msgstr ""
 
-#: ../src/plugin.py:642
-msgid "LiveTV country"
+#: ../src/plugin.py:647
+msgid "LiveTV Bouquet needs updating. Press GREEN."
 msgstr ""
 
-#: ../src/plugin.py:241
+#: ../src/plugin.py:695
+#, python-format
+msgid "LiveTV bouquet %s"
+msgstr ""
+
+#: ../src/plugin.py:288
 msgid "Loading data... Please wait"
 msgstr ""
 
-#: ../src/PlutoDownload.py:161 ../src/PlutoDownload.py:162
+#: ../src/PlutoDownload.py:163
 msgid "Local"
 msgstr ""
 
-#: ../src/plugin.py:254
+#: ../src/plugin.py:301
 msgid "MENU"
 msgstr ""
 
-#: ../src/PlutoDownload.py:489
+#: ../src/PlutoDownload.py:172 ../src/PlutoDownload.py:173
+#: ../src/PlutoDownload.py:177
+msgid "None"
+msgstr ""
+
+#: ../src/PlutoDownload.py:528
 msgid "Please wait..."
 msgstr ""
 
-#: ../src/plugin.py:257 ../src/plugin.py:484 ../src/plugin.py:498
-#: ../src/plugin.py:512 ../src/plugin.py:561 ../src/plugin.py:748
+#: ../src/plugin.py:304 ../src/plugin.py:530 ../src/plugin.py:543
+#: ../src/plugin.py:555 ../src/plugin.py:605 ../src/plugin.py:803
 msgid "PlutoTV"
 msgstr ""
 
-#: ../src/plugin.py:637
+#: ../src/plugin.py:687
 msgid "PlutoTV Setup"
 msgstr ""
 
-#: ../src/plugin.py:601
+#: ../src/PlutoDownload.py:521
+msgid "PlutoTV updating"
+msgstr ""
+
+#: ../src/plugin.py:644 ../src/plugin.py:648
 msgid "Remove LiveTV Bouquet"
 msgstr ""
 
-#: ../src/plugin.py:718
+#: ../src/plugin.py:773
 #, python-format
 msgid "Resume position at %s"
 msgstr ""
 
-#: ../src/PlutoDownload.py:162
-msgid "Same as VoD"
-msgstr ""
-
-#: ../src/plugin.py:494 ../src/plugin.py:555
+#: ../src/plugin.py:539 ../src/plugin.py:599
 msgid "Season"
 msgstr ""
 
-#: ../src/plugin.py:496
+#: ../src/plugin.py:541
 msgid "Seasons"
 msgstr ""
 
-#: ../src/plugin.py:642
-msgid "Select the country that the LiveTV bouquet will be created for."
-msgstr ""
-
-#: ../src/plugin.py:641
+#: ../src/plugin.py:691
 msgid "Select the country that the VoD list will be created for."
 msgstr ""
 
-#: ../src/plugin.py:750
+#: ../src/plugin.py:805
 msgid "Silently download PlutoTV"
 msgstr ""
 
-#: ../src/plugin.py:643
-msgid "Stop currently playing service when entering PlutoTV plugin."
-msgstr ""
-
-#: ../src/plugin.py:643
-msgid "Stop service"
-msgstr ""
-
-#: ../src/plugin.py:250
+#: ../src/plugin.py:297
 msgid "TMDb Search"
 msgstr ""
 
-#: ../src/plugin.py:642
-msgid "The bouquet will need recreating."
-msgstr ""
-
-#: ../src/PlutoDownload.py:500
+#: ../src/PlutoDownload.py:542
 msgid "The download is in progress. Exit now?"
 msgstr ""
 
-#: ../src/plugin.py:383 ../src/PlutoDownload.py:524
+#: ../src/plugin.py:430 ../src/PlutoDownload.py:565
 msgid "There is no data, it is possible that Pluto TV is not available in your country"
 msgstr ""
 
-#: ../src/plugin.py:599
+#: ../src/plugin.py:642 ../src/plugin.py:646
 msgid "Update LiveTV Bouquet"
 msgstr ""
 
-#: ../src/plugin.py:238
+#: ../src/PlutoDownload.py:533
+#, python-format
+msgid "Updating: Pluto TV %s"
+msgstr ""
+
+#: ../src/plugin.py:697
+msgid "Used for storing video cover graphics, etc. A hard drive that goes into standby mode or a slow network mount are not good choices."
+msgstr ""
+
+#: ../src/plugin.py:285
 msgid "VOD Menu"
 msgstr ""
 
-#: ../src/plugin.py:748
+#: ../src/plugin.py:803
 msgid "View video on demand and download a bouquet of live tv channels"
 msgstr ""
 
-#: ../src/plugin.py:641
+#: ../src/plugin.py:691
 msgid "VoD country"
 msgstr ""
 
-#: ../src/PlutoDownload.py:521
+#: ../src/PlutoDownload.py:562
 msgid "Waiting for Channel: "
 msgstr ""
 
-#: ../src/plugin.py:591
+#: ../src/plugin.py:635
 msgid ""
 "You now have an updated favorites list with Pluto TV channels on your channel list.\n"
 "\n"
