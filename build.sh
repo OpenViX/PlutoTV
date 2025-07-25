@@ -1,12 +1,5 @@
 #!/bin/sh
-
-PATTERN="*_all.ipk"
-CURRENT=`pwd`
-TEMP=$(mktemp -d)
-
-cp -a $CURRENT/. $TEMP
-
-cd $TEMP
+find . -name '*_all.ipk' -delete # remove old ipks from previous use of this script
 
 cd po
 ./updateallpo-multiOS.sh
@@ -38,9 +31,9 @@ mv ./control/control.tar.gz .
 
 ar -r ../${package}_${version_updated}_all.ipk debian-binary control.tar.gz data.tar.gz
 
-cd $CURRENT
+rm -fr control.tar.gz data.tar.gz usr
+cd ..
 
-rm -f $CURRENT/$PATTERN # remove old ipk if exists
-cp $TEMP/$PATTERN $CURRENT
+rm -rf ./src/locale # clean up after po update
 
-rm -rf $TEMP # clean up
+git stash # clean up any changes to the repo
