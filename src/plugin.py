@@ -24,13 +24,13 @@
 # for localized messages
 from . import _, PluginLanguageDomain
 from .PlutoDownload import plutoRequest, PlutoDownload, Silent, getselectedcountries  # , getClips
-from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, DATA_FOLDER, PLUGIN_FOLDER, BOUQUET_FILE
+from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE
 
 from skin import applySkinFactor, fonts, parameters
 
 from Components.ActionMap import ActionMap
 from Components.AVSwitch import AVSwitch
-from Components.config import config, ConfigYesNo
+from Components.config import config, ConfigSelection
 from Components.Label import Label
 from Components.MenuList import MenuList
 from Components.MultiContent import MultiContentEntryText, MultiContentEntryPixmapAlphaBlend
@@ -43,6 +43,7 @@ from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 from Screens.Setup import Setup
 from Tools.Directories import fileExists, isPluginInstalled, resolveFilename, SCOPE_CURRENT_SKIN
+from Components.Harddisk import harddiskmanager
 from Tools.Hex2strColor import Hex2strColor
 from Tools.LoadPixmap import LoadPixmap
 from Tools import Notifications
@@ -55,6 +56,52 @@ from pickle import load as pickle_load, dump as pickle_dump
 import re
 from time import time, strftime, gmtime, localtime
 from urllib.parse import quote
+
+
+DATA_FOLDER = ""
+
+
+class MountChoices:
+	def __init__(self):
+		choices = self.getMountChoices()
+		config.plugins.plutotv.datalocation = ConfigSelection(choices=choices, default=self.getMountDefault(choices))
+		harddiskmanager.on_partition_list_change.append(MountChoices.__onPartitionChange)  # to update data location choices on mountpoint change
+		config.plugins.plutotv.datalocation.addNotifier(MountChoices.updateDataFolder, immediate_feedback=False)
+
+	@staticmethod
+	def getMountChoices():
+		choices = []
+		for p in harddiskmanager.getMountedPartitions():
+			if os.path.exists(p.mountpoint):
+				d = os.path.normpath(p.mountpoint)
+				if p.mountpoint != "/":
+					choices.append((p.mountpoint, d))
+		choices.sort()
+		return choices
+
+	@staticmethod
+	def getMountDefault(choices):
+		choices = {x[1]: x[0] for x in choices}
+		default = choices.get("/media/hdd") or choices.get("/media/usb") or ""
+		return default
+
+	@staticmethod
+	def __onPartitionChange(*args, **kwargs):
+		choices = MountChoices.getMountChoices()
+		config.plugins.plutotv.datalocation.setChoices(choices=choices, default=MountChoices.getMountDefault(choices))
+		MountChoices.updateDataFolder()
+
+	@staticmethod
+	def updateDataFolder(*args, **kwargs):
+		global DATA_FOLDER
+		DATA_FOLDER = ""
+		if  v := config.plugins.plutotv.datalocation.value:
+			if os.path.exists(v):
+				DATA_FOLDER = os.path.join(config.plugins.plutotv.datalocation.value, "PlutoTV")
+				os.makedirs(DATA_FOLDER, exist_ok=True)  # create data folder if not exists
+
+
+MountChoices()
 
 
 class ResumePoints():
@@ -127,15 +174,17 @@ class DownloadPosters:
 	def startCmd(self, name, url):
 		if not name:
 			return
+		if not DATA_FOLDER:
+			return
 		os.makedirs(DATA_FOLDER, exist_ok=True)  # create data folder if not exists
 
 		rute = "wget"
 		filename = os.path.join(DATA_FOLDER, name)
 
-		rute = rute + " -O " + filename
+		rute += " -O " + filename
 
 		self.filename = filename
-		rute = rute + " " + url
+		rute += " " + url
 
 		if fileExists(filename):
 			self.callCallbacks(self.EVENT_DONE, self.filename, self.type)
@@ -644,6 +693,8 @@ class PlutoSetup(Setup):
 		for n in range(1, 6):
 			if n == 1 or getattr(config.plugins.plutotv, "live_tv_country" + str(n - 1)).value:
 				configList.append((_("LiveTV bouquet %s" % n), getattr(config.plugins.plutotv, "live_tv_country" + str(n)), _("Country for which LiveTV bouquet %s will be created.") % n))
+		configList.append(("---",))
+		configList.append((_("Data location"), config.plugins.plutotv.datalocation, _("Used for storing video cover graphics, etc. A hard drive that goes into standby mode or a slow network mount are not good choices.")))
 		self["config"].list = configList
 
 	def keyCancel(self):
