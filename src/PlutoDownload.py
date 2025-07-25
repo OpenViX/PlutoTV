@@ -567,6 +567,7 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 
 class DownloadSilent(PlutoDownloadBase):
 	def __init__(self):
+		self.afterUpdate = []  # for callbacks
 		PlutoDownloadBase.__init__(self)
 		self.timer = eTimer()
 		self.timer.timeout.get().append(self.download)
@@ -575,9 +576,10 @@ class DownloadSilent(PlutoDownloadBase):
 		self.session = session
 		bouquets = open("/etc/enigma2/bouquets.tv", "r").read()
 		if "pluto_tv" in bouquets:
-			self.start()
+			self.start(True)
 
-	def start(self):
+	def start(self, fromSessionStart=False):
+		self.stop()
 		minutes = 60 * 5
 		if fileExists(TIMER_FILE):
 			last = float(open(TIMER_FILE, "r").read().replace("\n", "").replace("\r", ""))
@@ -585,9 +587,16 @@ class DownloadSilent(PlutoDownloadBase):
 			if minutes < 0:
 				minutes = 1  # do we want to do this so close to reboot
 		self.timer.startLongTimer(minutes * 60)
+		if not fromSessionStart:
+			self.afterUpdateCallbacks()
 
 	def stop(self):
 		self.timer.stop()
+
+	def afterUpdateCallbacks(self):
+		for f in self.afterUpdate:
+			if callable(f):
+				f()
 
 	def noCategories(self):
 		print("[Pluto TV] There is no data, it is possible that Pluto TV is not available in your country.")

@@ -278,6 +278,9 @@ class PlutoTV(Screen):
 
 		self.updatebutton()
 
+		if self.updatebutton not in Silent.afterUpdate:
+			Silent.afterUpdate.append(self.updatebutton)
+
 		self.TimerTemp = eTimer()
 		self.TimerTemp.callback.append(self.getCategories)
 		self.TimerTemp.start(10, 1)
@@ -622,6 +625,11 @@ class PlutoTV(Screen):
 		if i < len(self.colors):
 			text = Hex2strColor(self.colors[i]) + text + Hex2strColor(self.colors[0])
 		return text
+
+	def close(self, *args, **kwargs):
+		if self.updatebutton in Silent.afterUpdate:
+			Silent.afterUpdate.remove(self.updatebutton)
+		Screen.close(self)
 
 
 class PlutoSetup(Setup):
