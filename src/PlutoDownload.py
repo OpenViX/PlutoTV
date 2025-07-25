@@ -197,9 +197,9 @@ def getPiconPath():
 
 
 class DownloadComponent:
-	EVENT_DOWNLOAD = 0
+	EVENT_DOWNLOAD = 0  # not used
 	EVENT_DONE = 1
-	EVENT_ERROR = 2
+	EVENT_ERROR = 2  # not used
 
 	def __init__(self, n, ref, name, picon=False):
 		self.cmd = eConsoleAppContainer()
@@ -324,7 +324,7 @@ class PlutoDownloadBase():
 
 	def updateprogress(self, event=None, param=0, ref=None, name=None):
 		if hasattr(self, "state") and self.state == 1:  # hack for exit before end
-			if event == DownloadComponent.EVENT_DONE:
+			if event == DownloadComponent.EVENT_DONE:  # this will always be true because DownloadComponent.EVENT_DONE is the only event ever used
 				self.updateProgressBar(param)  # GUI widget
 				if param < self.total:
 					key = self.categories[self.key]
