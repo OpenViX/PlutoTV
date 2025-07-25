@@ -95,7 +95,7 @@ class MountChoices:
 	def updateDataFolder(*args, **kwargs):
 		global DATA_FOLDER
 		DATA_FOLDER = ""
-		if  v := config.plugins.plutotv.datalocation.value:
+		if v := config.plugins.plutotv.datalocation.value:
 			if os.path.exists(v):
 				DATA_FOLDER = os.path.join(config.plugins.plutotv.datalocation.value, "PlutoTV")
 				os.makedirs(DATA_FOLDER, exist_ok=True)  # create data folder if not exists
