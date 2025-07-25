@@ -218,7 +218,7 @@ class DownloadComponent:
 		os.makedirs(picon_path, exist_ok=True)  # create folder if not exists
 		filename = os.path.join(picon_path, self.ref.replace(":", "_") + ".png")
 		if filename:
-			rute = rute + " -O " + filename
+			rute += " -O " + filename
 			self.filename = filename
 		else:
 			self.filename = cmd.split("/")[-1]
