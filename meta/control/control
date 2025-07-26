@@ -1,11 +1,12 @@
 Package: enigma2-plugin-extensions-plutotv
 Version: 1.0
-Description: IPTV VoD player
-Section: IPTV
+Description: PlutoTV for enigma2
+Section: base
 Priority: optional
 Maintainer: OpenViX
 Architecture: all
-OE: N/A
+OE: enigma2-plugin-extensions-plutotv
+License: GPL-2.0-or-later
 Homepage: https://github.com/OpenViX/PlutoTV
 Depends: python3-requests
 Source: https://github.com/OpenViX/PlutoTV/blob/master/build.sh
