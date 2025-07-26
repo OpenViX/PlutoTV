@@ -1,6 +1,6 @@
 Package: enigma2-plugin-extensions-plutotv
 Version: 1.0
-Description: PlutoTV for enigma2
+Description: PlutoTV plugin for enigma2
 Section: base
 Priority: optional
 Maintainer: OpenViX
