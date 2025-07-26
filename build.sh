@@ -1,5 +1,11 @@
 #!/bin/sh
 
+#
+# To run on windows use MSYS2 or gitbash.
+# Some aditional packages may need installing.
+# e.g. ar.exe
+#
+
 PATTERN="*_all.ipk"
 CURRENT=`pwd`
 TEMP=$(mktemp -d)
