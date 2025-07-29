@@ -26,16 +26,16 @@
 
 # for localized messages
 from . import _
-from .Variables import TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, BOUQUET_NAME
+from .Variables import TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, BOUQUET_NAME, NUMBER_OF_LIVETV_BOUQUETS
 
 from Components.ActionMap import ActionMap
-from Components.config import ConfigSelection, ConfigSubsection, config
+from Components.config import ConfigSelection, ConfigSubsection, ConfigBoolean, config
 from Components.Label import Label
 from Components.ProgressBar import ProgressBar
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 from Tools.CountryCodes import ISO3166
-from Tools.Directories import fileExists
+from Tools.Directories import fileExists, sanitizeFilename
 
 from enigma import eConsoleAppContainer, eDVBDB, eEPGCache, eTimer
 
@@ -43,6 +43,7 @@ import datetime
 import os
 import re
 import requests
+import sys
 import time
 import uuid
 from urllib.parse import quote
@@ -158,26 +159,29 @@ plutoRequest = PlutoRequest()
 
 COUNTRY_NAMES = {cc: country[0].split("(")[0].strip() for country in sorted(ISO3166) if (cc := country[1].lower()) in PlutoRequest.X_FORWARDS}  # ISO3166 is sorted in English, sorted will sort by locale.
 
+TSIDS = {cc: ("%X" % (i + 1)) for i, cc in enumerate(COUNTRY_NAMES)}
+
 
 config.plugins.plutotv = ConfigSubsection()
 config.plugins.plutotv.country = ConfigSelection(default="local", choices=[("local", _("Local"))] + list(COUNTRY_NAMES.items()))
+config.plugins.plutotv.snp = ConfigBoolean(default=True, descriptions={False: _("service reference"), True: _("service name")}, graphic=False)
 
 
 def getselectedcountries(skip=0):
-	return [getattr(config.plugins.plutotv, "live_tv_country" + str(n)).value for n in range(1, 6) if n != skip]
+	return [getattr(config.plugins.plutotv, "live_tv_country" + str(n)).value for n in range(1, NUMBER_OF_LIVETV_BOUQUETS + 1) if n != skip]
 
 
 def autocountry(configElement):
-	for n in range(1, 5):
-		getattr(config.plugins.plutotv, "live_tv_country" + str(n)).setChoices([x for x in [("", _("None"))] + list(COUNTRY_NAMES.items()) if x[0] and x[0] not in getselectedcountries(n) or not x[0] and not getattr(config.plugins.plutotv, "live_tv_country" + str(n + 1)).value])
-	config.plugins.plutotv.live_tv_country5.setChoices([x for x in [("", _("None"))] + list(COUNTRY_NAMES.items()) if x[0] and x[0] not in getselectedcountries(5) or not x[0]])
+	for n in range(1, NUMBER_OF_LIVETV_BOUQUETS + 1):
+		selected_countries = getselectedcountries(n)  # run only once, not loop during list comprehension
+		getattr(config.plugins.plutotv, "live_tv_country" + str(n)).setChoices([x for x in [("", _("None"))] + list(COUNTRY_NAMES.items()) if x[0] and x[0] not in selected_countries or not x[0] and (n == NUMBER_OF_LIVETV_BOUQUETS or not getattr(config.plugins.plutotv, "live_tv_country" + str(n + 1)).value)])
 
 
-for n in range(1, 6):
+for n in range(1, NUMBER_OF_LIVETV_BOUQUETS + 1):
 	setattr(config.plugins.plutotv, "live_tv_country" + str(n), ConfigSelection(default="", choices=[("", _("None"))] + list(COUNTRY_NAMES.items())))
 
-for n in range(1, 6):
-	getattr(config.plugins.plutotv, "live_tv_country" + str(n)).addNotifier(autocountry, initial_call=n == 5)
+for n in range(1, NUMBER_OF_LIVETV_BOUQUETS + 1):
+	getattr(config.plugins.plutotv, "live_tv_country" + str(n)).addNotifier(autocountry, initial_call=n == NUMBER_OF_LIVETV_BOUQUETS)
 
 
 def getPiconPath():
@@ -201,42 +205,35 @@ class DownloadComponent:
 	EVENT_DONE = 1
 	EVENT_ERROR = 2  # not used
 
-	def __init__(self, n, ref, name, picon=False):
+	def __init__(self, n, ref, name, silent=False):
 		self.cmd = eConsoleAppContainer()
-		self.cache = None
-		self.name = None
-		self.data = None
-		self.picon = picon
+		self.silent = silent
 		self.number = n
 		self.ref = ref
 		self.name = name
 		self.callbackList = []
+		piconWidth = 220
+		piconHeight = 132
+		self.resolutionStr = "?h={piconHeight}&w={piconWidth}"
 
-	def startCmd(self, cmd):
-		rute = "wget"
-		picon_path = getPiconPath()
+	def startCmd(self, logourl, picon_path):
+		if not logourl:  # no point continuing
+			self.callCallbacks(self.EVENT_DONE, self.number, self.ref, self.name)
+			return
 		os.makedirs(picon_path, exist_ok=True)  # create folder if not exists
-		filename = os.path.join(picon_path, self.ref.replace(":", "_") + ".png")
-		if filename:
-			rute += " -O " + filename
-			self.filename = filename
+		if config.plugins.plutotv.snp.value and (ch_name := sanitizeFilename(self.name.lower())):
+			filename = os.path.join(picon_path, ch_name + ".png")
 		else:
-			self.filename = cmd.split("/")[-1]
+			filename = os.path.join(picon_path, self.ref.replace(":", "_") + ".png")
 
-		number = self.ref.split(":")
-		if len(number[3]) > 3:
-			png = os.path.join(PLUGIN_FOLDER, "plutotv.png")
-			rute = "cp " + png + " " + filename
-		else:
-			rute = rute + " " + cmd
-
-		if fileExists(filename) and not self.picon:
+		one_day_ago = time.time() - 60 * 60 * 24
+		if fileExists(filename) and (self.silent or os.path.getmtime(filename) < one_day_ago):
 			self.callCallbacks(self.EVENT_DONE, self.number, self.ref, self.name)
 		else:
-			self.runCmd(rute)
+			self.runCmd(f'wget -O "{filename}" "{logourl}{self.resolutionStr}"')
 
 	def runCmd(self, cmd):
-		print("executing", cmd)
+		print("[runCmd] executing", cmd)
 		self.cmd.appClosed.append(self.cmdFinished)
 		if self.cmd.execute(cmd):
 			self.cmdFinished(-1)
@@ -260,6 +257,7 @@ class PlutoDownloadBase():
 	downloadActive = False  # shared between instances
 
 	def __init__(self, silent=False):
+		self.recursionMax = 1500
 		self.channelsList = {}
 		self.guideList = {}
 		self.categories = []
@@ -277,12 +275,15 @@ class PlutoDownloadBase():
 			yield cc
 
 	def download(self):
+		sys.setrecursionlimit(self.recursionMax + 10)
+		self.recursion = 0
 		if PlutoDownloadBase.downloadActive:
 			if not self.silent:
 				self.session.openWithCallback(self.close, MessageBox, _("A silent download is in progress."), MessageBox.TYPE_INFO, timeout=30)
 			print("[PlutoDownload] A silent download is in progress.")
 			return
 		self.ccGenerator = self.cc()
+		self.picon_path = getPiconPath()
 		self.manager()
 
 	def manager(self):
@@ -301,6 +302,7 @@ class PlutoDownloadBase():
 	def downloadBouquet(self, cc):
 		self.bouquet = []
 		self.bouquetCC = cc
+		self.tsid = TSIDS.get(cc, "0")
 		self.stop()
 		self.channelsList.clear()
 		self.guideList.clear()
@@ -327,7 +329,7 @@ class PlutoDownloadBase():
 		if hasattr(self, "state") and self.state == 1:  # hack for exit before end
 			if event == DownloadComponent.EVENT_DONE:  # this will always be true because DownloadComponent.EVENT_DONE is the only event ever used
 				self.updateProgressBar(param)  # GUI widget
-				if param < self.total:
+				if param < self.total and self.recursion < self.recursionMax:
 					key = self.categories[self.key]
 					if self.chitem == self.subtotal:
 						self.chitem = 0
@@ -341,17 +343,18 @@ class PlutoDownloadBase():
 					if self.chitem == 0:
 						self.bouquet.append("1:64:%s:0:0:0:0:0:0:0::%s" % (self.key, self.categories[self.key]))
 
-					channel = self.channelsList[key][self.chitem]
-					self.bouquet.append("4097:0:1:%s:0:0:0:0:0:0:%s:%s" % (channel[0], quote(channel[4]), channel[2]))
-					self.chitem = self.chitem + 1
+					ch_sid, ch_hash, ch_name, ch_logourl, ch_url = self.channelsList[key][self.chitem]
 
-					ref = "4097:0:1:%s:0:0:0:0:0:0" % channel[0]
-					name = channel[2]
-					self.updateStatus(name)  # GUI widget
+					self.bouquet.append("4097:0:1:%s:%s:FF:CCCC0000:0:0:0:%s:%s" % (ch_sid, self.tsid, quote(ch_url), ch_name))
+					self.chitem += 1
+
+					ref = "4097:0:1:%s:%s:FF:CCCC0000:0:0:0" % (ch_sid, self.tsid)
+					print("[updateprogress] ref", ref)
+					self.updateStatus(ch_name)  # GUI widget
 
 					chevents = []
-					if channel[1] in self.guideList:
-						for evt in self.guideList[channel[1]]:
+					if ch_hash in self.guideList:
+						for evt in self.guideList[ch_hash]:
 							title = evt[0]
 							summary = evt[1]
 							begin = int(round(evt[2]))
@@ -364,11 +367,11 @@ class PlutoDownloadBase():
 						events_tuple = tuple(iterator)
 						self.epgcache.importEvents(ref + ":https%3a//.m3u8", events_tuple)
 
-					logo = channel[3]
-					self.down = DownloadComponent(param + 1, ref, name, not self.silent)
+					self.recursion += 1
+					self.down = DownloadComponent(param + 1, ref, ch_name, self.silent)
 					self.down.addCallback(self.updateprogress)
 
-					self.down.startCmd(logo)
+					self.down.startCmd(ch_logourl, self.picon_path)
 				else:
 					eDVBDB.getInstance().addOrUpdateBouquet(BOUQUET_NAME % COUNTRY_NAMES[self.bouquetCC], BOUQUET_FILE % self.bouquetCC, self.bouquet, False)  # place at bottom if not exists
 					os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
@@ -420,8 +423,9 @@ class PlutoDownloadBase():
 
 	def buildM3U(self, channel):
 		# (number, _id, name, logo, url)
-		logo = (channel.get("logo", {}).get("path", None) or None)
-		logo = (channel.get("solidLogoPNG", {}).get("path", None) or None)  # blancos
+		# Select type of logo we want
+		# logo = (channel.get("logo", {}).get("path", None) or None)
+		# logo = (channel.get("solidLogoPNG", {}).get("path", None) or None)  # blancos
 		logo = (channel.get("colorLogoPNG", {}).get("path", None) or None)
 		group = channel.get("category", "")
 		_id = channel["_id"]
@@ -490,7 +494,7 @@ class PlutoDownloadBase():
 	def stop(self):
 		pass
 
-	def exitOk(self, answer=True):
+	def exitOk(self, answer=None):
 		pass
 
 	def updateProgressBar(self, param):
@@ -539,7 +543,12 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 		self.TimerTemp.start(10, True)
 
 	def exit(self):
-		self.session.openWithCallback(self.exitOk, MessageBox, _("The download is in progress. Exit now?"), MessageBox.TYPE_YESNO, timeout=30)
+		self.session.openWithCallback(self.cleanup, MessageBox, _("The download is in progress. Exit now?"), MessageBox.TYPE_YESNO, timeout=30)
+
+	def cleanup(self, answer=None):
+		if answer:
+			PlutoDownloadBase.downloadActive = False
+			self.exitOk(answer)
 
 	def exitOk(self, answer=True):
 		if answer:
@@ -568,7 +577,7 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 class DownloadSilent(PlutoDownloadBase):
 	def __init__(self):
 		self.afterUpdate = []  # for callbacks
-		PlutoDownloadBase.__init__(self)
+		PlutoDownloadBase.__init__(self, silent=True)
 		self.timer = eTimer()
 		self.timer.timeout.get().append(self.download)
 
@@ -582,7 +591,7 @@ class DownloadSilent(PlutoDownloadBase):
 		self.stop()
 		minutes = 60 * 5
 		if fileExists(TIMER_FILE):
-			last = float(open(TIMER_FILE, "r").read().replace("\n", "").replace("\r", ""))
+			last = float(open(TIMER_FILE, "r").read().strip())
 			minutes -= int((time.time() - last) / 60)
 			if minutes < 0:
 				minutes = 1  # do we want to do this so close to reboot

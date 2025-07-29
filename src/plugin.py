@@ -24,7 +24,7 @@
 # for localized messages
 from . import _, PluginLanguageDomain
 from .PlutoDownload import plutoRequest, PlutoDownload, Silent, getselectedcountries  # , getClips
-from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE
+from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, NUMBER_OF_LIVETV_BOUQUETS
 
 from skin import applySkinFactor, fonts, parameters
 
@@ -690,10 +690,11 @@ class PlutoSetup(Setup):
 		configList = []
 		configList.append((_("VoD country"), config.plugins.plutotv.country, _("Select the country that the VoD list will be created for.")))
 		configList.append(("---",))
-		for n in range(1, 6):
+		for n in range(1, NUMBER_OF_LIVETV_BOUQUETS + 1):
 			if n == 1 or getattr(config.plugins.plutotv, "live_tv_country" + str(n - 1)).value:
 				configList.append((_("LiveTV bouquet %s") % n, getattr(config.plugins.plutotv, "live_tv_country" + str(n)), _("Country for which LiveTV bouquet %s will be created.") % n))
 		configList.append(("---",))
+		configList.append((_("Picon type"), config.plugins.plutotv.snp, _("Using service name picons means they will continue to work even if the service reference changes. Also, they can be shared between channels of the same name that don't have the same service references.")))
 		configList.append((_("Data location"), config.plugins.plutotv.datalocation, _("Used for storing video cover graphics, etc. A hard drive that goes into standby mode or a slow network mount are not good choices.")))
 		self["config"].list = configList
 

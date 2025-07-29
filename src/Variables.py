@@ -8,3 +8,4 @@ RESUMEPOINTS_FILE = path.join(CONFIG_FOLDER, "resumepoints.pkl")
 PLUGIN_FOLDER = path.dirname(path.realpath(__file__))
 BOUQUET_FILE = "userbouquet.pluto_tv_%s.tv"
 BOUQUET_NAME = "Pluto TV (%s)"
+NUMBER_OF_LIVETV_BOUQUETS = 5  # maximum number of bouquets
