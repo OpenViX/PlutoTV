@@ -1,5 +1,5 @@
 from Tools.Directories import resolveFilename, SCOPE_CONFIG
-from os import listdir, path
+from os import path
 
 
 CONFIG_FOLDER = path.join(path.realpath(resolveFilename(SCOPE_CONFIG)), "PlutoTV")

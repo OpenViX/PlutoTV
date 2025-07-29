@@ -37,16 +37,18 @@ from Screens.Screen import Screen
 from Tools.CountryCodes import ISO3166
 from Tools.Directories import fileExists, sanitizeFilename
 
-from enigma import eConsoleAppContainer, eDVBDB, eEPGCache, eTimer
+from enigma import eDVBDB, eEPGCache, eTimer
 
 import datetime
 import os
 import re
 import requests
-import sys
 import time
 import uuid
 from urllib.parse import quote
+
+import threading  # for fetching picons
+from twisted.internet import threads  # for updating GUI widgets
 
 
 class PlutoRequest:
@@ -184,80 +186,74 @@ for n in range(1, NUMBER_OF_LIVETV_BOUQUETS + 1):
 	getattr(config.plugins.plutotv, "live_tv_country" + str(n)).addNotifier(autocountry, initial_call=n == NUMBER_OF_LIVETV_BOUQUETS)
 
 
-def getPiconPath():
-	try:
-		from Components.Renderer.Picon import lastPiconPath, searchPaths
-	except ImportError:
-		try:
-			from Components.Renderer.Picon import piconLocator
-			lastPiconPath = piconLocator.activePiconPath
-			searchPaths = piconLocator.searchPaths
-		except ImportError:
-			lastPiconPath = None
-			searchPaths = None
-	if searchPaths and len(searchPaths) == 1:
-		return searchPaths[0]
-	return lastPiconPath or "/picon"
-
-
-class DownloadComponent:
-	EVENT_DOWNLOAD = 0  # not used
-	EVENT_DONE = 1
-	EVENT_ERROR = 2  # not used
-
-	def __init__(self, n, ref, name, silent=False):
-		self.cmd = eConsoleAppContainer()
-		self.silent = silent
-		self.number = n
-		self.ref = ref
-		self.name = name
-		self.callbackList = []
+class PiconFetcher:
+	def __init__(self, parent):
+		self.parent = parent
+		self.picon_path = self.getPiconPath()
 		piconWidth = 220
 		piconHeight = 132
-		self.resolutionStr = "?h={piconHeight}&w={piconWidth}"
+		self.resolutionStr = f"?h={piconHeight}&w={piconWidth}"
+		self.piconList = []
 
-	def startCmd(self, logourl, picon_path):
-		if not logourl:  # no point continuing
-			self.callCallbacks(self.EVENT_DONE, self.number, self.ref, self.name)
-			return
-		os.makedirs(picon_path, exist_ok=True)  # create folder if not exists
-		if config.plugins.plutotv.snp.value and (ch_name := sanitizeFilename(self.name.lower())):
-			filename = os.path.join(picon_path, ch_name + ".png")
-		else:
-			filename = os.path.join(picon_path, self.ref.replace(":", "_") + ".png")
+	def addPicon(self, ref, name, url, silent):
+		piconname = os.path.join(self.picon_path, ch_name + ".png") if config.plugins.plutotv.snp.value and (ch_name := sanitizeFilename(name.lower())) else os.path.join(self.picon_path, ref.replace(":", "_") + ".png")
+		one_week_ago = time.time() - 60 * 60 * 24 * 7
+		if not (fileExists(piconname) and (silent or os.path.getmtime(piconname) > one_week_ago)):
+			self.piconList.append((url, piconname))
 
-		one_day_ago = time.time() - 60 * 60 * 24
-		if fileExists(filename) and (self.silent or os.path.getmtime(filename) < one_day_ago):
-			self.callCallbacks(self.EVENT_DONE, self.number, self.ref, self.name)
-		else:
-			self.runCmd(f'wget -O "{filename}" "{logourl}{self.resolutionStr}"')
+	def fetchPicons(self):
+		maxthreads = 100  # make configurable
+		self.counter = 0
+		failed = []
+		if self.piconList:
+			threads = [threading.Thread(target=self.downloadURL, args=(url, filename)) for url, filename in self.piconList]
+			for thread in threads:
+				while threading.activeCount() > maxthreads:
+					time.sleep(1)
+				try:
+					thread.start()
+				except RuntimeError:
+					failed.append(thread)
+			for thread in threads:
+				if thread not in failed:
+					thread.join()
+			print("[Fetcher] all fetched")
 
-	def runCmd(self, cmd):
-		print("[runCmd] executing", cmd)
-		self.cmd.appClosed.append(self.cmdFinished)
-		if self.cmd.execute(cmd):
-			self.cmdFinished(-1)
+	def downloadURL(self, url, piconname):
+		self.counter += 1
+		try:
+			response = requests.get(f"{url}{self.resolutionStr}", timeout=2.50, headers={"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"})
+			response.raise_for_status()
+			content_type = response.headers.get('content-type')
+			if content_type and content_type.lower() != 'image/png':
+				return
+			with open(piconname, "wb") as f:
+				f.write(response.content)
+			threads.deferToThread(self.parent.updateProgressBar, self.counter)
+		except requests.exceptions.RequestException:
+			pass
 
-	def cmdFinished(self, retval):
-		self.callCallbacks(self.EVENT_DONE, self.number, self.ref, self.name)
-		self.cmd.appClosed.remove(self.cmdFinished)
-
-	def callCallbacks(self, event, param=None, ref=None, name=None):
-		for callback in self.callbackList:
-			callback(event, param, ref, name)
-
-	def addCallback(self, callback):
-		self.callbackList.append(callback)
-
-	def removeCallback(self, callback):
-		self.callbackList.remove(callback)
+	@staticmethod
+	def getPiconPath():
+		try:
+			from Components.Renderer.Picon import lastPiconPath, searchPaths
+		except ImportError:
+			try:
+				from Components.Renderer.Picon import piconLocator
+				lastPiconPath = piconLocator.activePiconPath
+				searchPaths = piconLocator.searchPaths
+			except ImportError:
+				lastPiconPath = None
+				searchPaths = None
+		if searchPaths and len(searchPaths) == 1:
+			return searchPaths[0]
+		return lastPiconPath or "/picon"
 
 
 class PlutoDownloadBase():
 	downloadActive = False  # shared between instances
 
 	def __init__(self, silent=False):
-		self.recursionMax = 1500
 		self.channelsList = {}
 		self.guideList = {}
 		self.categories = []
@@ -275,15 +271,13 @@ class PlutoDownloadBase():
 			yield cc
 
 	def download(self):
-		sys.setrecursionlimit(self.recursionMax + 10)
-		self.recursion = 0
 		if PlutoDownloadBase.downloadActive:
 			if not self.silent:
 				self.session.openWithCallback(self.close, MessageBox, _("A silent download is in progress."), MessageBox.TYPE_INFO, timeout=30)
 			print("[PlutoDownload] A silent download is in progress.")
 			return
 		self.ccGenerator = self.cc()
-		self.picon_path = getPiconPath()
+		self.piconFetcher = PiconFetcher(self)
 		self.manager()
 
 	def manager(self):
@@ -296,6 +290,15 @@ class PlutoDownloadBase():
 			self.categories.clear()
 			PlutoDownloadBase.downloadActive = False
 			self.ccGenerator = None
+			if self.piconFetcher.piconList:
+				self.total = len(self.piconFetcher.piconList)
+				threads.deferToThread(self.updateProgressBar, 0)  # reset
+				threads.deferToThread(self.updateAction, _("picons"))  # GUI widget
+				threads.deferToThread(self.updateStatus, _("Fetching picons..."))  # GUI widget
+				self.piconFetcher.fetchPicons()
+			self.piconFetcher = None
+			threads.deferToThread(self.updateStatus, _("LiveTV update completed"))  # GUI widget
+			time.sleep(5)
 			self.exitOk()
 			self.start()
 
@@ -307,7 +310,10 @@ class PlutoDownloadBase():
 		self.channelsList.clear()
 		self.guideList.clear()
 		self.categories.clear()
-		self.updateAction(cc)
+		threads.deferToThread(self.updateAction, cc)  # GUI widget
+		if self.total:  # only reset progress bar if the total has already been set
+			threads.deferToThread(self.updateProgressBar, 0)  # reset
+		threads.deferToThread(self.updateStatus, _("Processing data..."))  # GUI widget
 		channels = sorted(plutoRequest.getChannels(cc), key=lambda x: x["number"])
 		guide = self.getGuidedata(cc)
 		[self.buildM3U(channel) for channel in channels]
@@ -323,60 +329,56 @@ class PlutoDownloadBase():
 			self.key = 0
 			self.chitem = 0
 			[self.buildGuide(event) for event in guide]
-			self.updateprogress(event=DownloadComponent.EVENT_DONE, param=0)
+			for i in range(self.total + 1):
+				self.updateprogress(param=i)
 
-	def updateprogress(self, event=None, param=0, ref=None, name=None):
+	def updateprogress(self, param):
 		if hasattr(self, "state") and self.state == 1:  # hack for exit before end
-			if event == DownloadComponent.EVENT_DONE:  # this will always be true because DownloadComponent.EVENT_DONE is the only event ever used
-				self.updateProgressBar(param)  # GUI widget
-				if param < self.total and self.recursion < self.recursionMax:
-					key = self.categories[self.key]
-					if self.chitem == self.subtotal:
-						self.chitem = 0
-						found = False
-						while not found:
-							self.key = self.key + 1
-							key = self.categories[self.key]
-							found = key in self.channelsList
-						self.subtotal = len(self.channelsList[key])
+			threads.deferToThread(self.updateProgressBar, param)
+			if param < self.total:
+				key = self.categories[self.key]
+				if self.chitem == self.subtotal:
+					self.chitem = 0
+					found = False
+					while not found:
+						self.key += 1
+						key = self.categories[self.key]
+						found = key in self.channelsList
+					self.subtotal = len(self.channelsList[key])
 
-					if self.chitem == 0:
-						self.bouquet.append("1:64:%s:0:0:0:0:0:0:0::%s" % (self.key, self.categories[self.key]))
+				if self.chitem == 0:
+					self.bouquet.append("1:64:%s:0:0:0:0:0:0:0::%s" % (self.key, self.categories[self.key]))
 
-					ch_sid, ch_hash, ch_name, ch_logourl, ch_url = self.channelsList[key][self.chitem]
+				ch_sid, ch_hash, ch_name, ch_logourl, ch_url = self.channelsList[key][self.chitem]
 
-					self.bouquet.append("4097:0:1:%s:%s:FF:CCCC0000:0:0:0:%s:%s" % (ch_sid, self.tsid, quote(ch_url), ch_name))
-					self.chitem += 1
+				self.bouquet.append("4097:0:1:%s:%s:FF:CCCC0000:0:0:0:%s:%s" % (ch_sid, self.tsid, quote(ch_url), ch_name))
+				self.chitem += 1
 
-					ref = "4097:0:1:%s:%s:FF:CCCC0000:0:0:0" % (ch_sid, self.tsid)
-					print("[updateprogress] ref", ref)
-					self.updateStatus(ch_name)  # GUI widget
+				ref = "4097:0:1:%s:%s:FF:CCCC0000:0:0:0" % (ch_sid, self.tsid)
+				print("[updateprogress] ref", ref)
+				threads.deferToThread(self.updateStatus, _("Waiting for Channel: ") + ch_name)  # GUI widget
 
-					chevents = []
-					if ch_hash in self.guideList:
-						for evt in self.guideList[ch_hash]:
-							title = evt[0]
-							summary = evt[1]
-							begin = int(round(evt[2]))
-							duration = evt[3]
-							genre = evt[4]
+				chevents = []
+				if ch_hash in self.guideList:
+					for evt in self.guideList[ch_hash]:
+						title = evt[0]
+						summary = evt[1]
+						begin = int(round(evt[2]))
+						duration = evt[3]
+						genre = evt[4]
 
-							chevents.append((begin, duration, title, "", summary, genre))
-					if len(chevents) > 0:
-						iterator = iter(chevents)
-						events_tuple = tuple(iterator)
-						self.epgcache.importEvents(ref + ":https%3a//.m3u8", events_tuple)
+						chevents.append((begin, duration, title, "", summary, genre))
+				if len(chevents) > 0:
+					iterator = iter(chevents)
+					events_tuple = tuple(iterator)
+					self.epgcache.importEvents(ref + ":https%3a//.m3u8", events_tuple)
 
-					self.recursion += 1
-					self.down = DownloadComponent(param + 1, ref, ch_name, self.silent)
-					self.down.addCallback(self.updateprogress)
-
-					self.down.startCmd(ch_logourl, self.picon_path)
-				else:
-					eDVBDB.getInstance().addOrUpdateBouquet(BOUQUET_NAME % COUNTRY_NAMES[self.bouquetCC], BOUQUET_FILE % self.bouquetCC, self.bouquet, False)  # place at bottom if not exists
-					os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
-					open(TIMER_FILE, "w").write(str(time.time()))
-					self.manager()
+				self.piconFetcher.addPicon(ref, ch_name, ch_logourl, self.silent)
+			else:
+				eDVBDB.getInstance().addOrUpdateBouquet(BOUQUET_NAME % COUNTRY_NAMES[self.bouquetCC], BOUQUET_FILE % self.bouquetCC, self.bouquet, False)  # place at bottom if not exists
+				os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
+				open(TIMER_FILE, "w").write(str(time.time()))
+				self.manager()
 
 	def buildGuide(self, event):
 		# (title, summary, start, duration, genre)
@@ -528,7 +530,7 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 		self["progress"] = ProgressBar()
 		self["action"] = Label()
 		self.updateAction()
-		self["wait"] = Label("")
+		self["wait"] = Label()
 		self["status"] = Label(_("Please wait..."))
 		self["actions"] = ActionMap(["OkCancelActions"], {"cancel": self.exit}, -1)
 		self.onFirstExecBegin.append(self.init)
@@ -538,9 +540,7 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 
 	def init(self):
 		self["progress"].setValue(0)
-		self.TimerTemp = eTimer()
-		self.TimerTemp.callback.append(self.download)
-		self.TimerTemp.start(10, True)
+		threads.deferToThread(self.download)
 
 	def exit(self):
 		self.session.openWithCallback(self.cleanup, MessageBox, _("The download is in progress. Exit now?"), MessageBox.TYPE_YESNO, timeout=30)
@@ -567,8 +567,8 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 		self["progress"].setValue(progress)
 		self["wait"].text = str(progress) + " %"
 
-	def updateStatus(self, name):
-		self["status"].text = _("Waiting for Channel: ") + name
+	def updateStatus(self, msg):
+		self["status"].text = msg
 
 	def noCategories(self):
 		self.session.openWithCallback(self.exitOk, MessageBox, _("There is no data, it is possible that Pluto TV is not available in your country"), type=MessageBox.TYPE_ERROR, timeout=10)
