@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-25 15:37+0300\n"
+"POT-Creation-Date: 2025-07-30 13:23+0200\n"
 "PO-Revision-Date: 2025-07-25 16:19+0300\n"
 "Last-Translator: Orlandox\n"
 "Language-Team: Orlandox\n"
@@ -18,39 +18,39 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: Poedit 3.6\n"
 
-#: ../src/plugin.py:356
+#: ../src/plugin.py:354
 #, python-format
 msgid "%s Season available"
 msgid_plural "%s Seasons available"
 msgstr[0] "%s Kausi saatavilla"
 msgstr[1] "%s Kautta saatavilla"
 
-#: ../src/PlutoDownload.py:282
+#: ../src/PlutoDownload.py:311
 msgid "A silent download is in progress."
 msgstr "Hiljainen lataus käynnissä."
 
-#: ../src/plugin.py:695
+#: ../src/plugin.py:685
 #, python-format
 msgid "Country for which LiveTV bouquet %s will be created."
 msgstr "Maa, jolle LiveTV-suosikkilista %s luodaan."
 
-#: ../src/plugin.py:650
+#: ../src/plugin.py:639
 msgid "Create LiveTV Bouquet"
 msgstr "Luo LiveTV-suosikkilista"
 
-#: ../src/plugin.py:697
+#: ../src/plugin.py:688
 msgid "Data location"
 msgstr "Tietojen sijainti"
 
-#: ../src/plugin.py:773
+#: ../src/plugin.py:789
 msgid "Do you want to resume this playback?"
 msgstr "Haluatko jatkaa tätä toistoa?"
 
-#: ../src/plugin.py:804
+#: ../src/plugin.py:820
 msgid "Download PlutoTV bouquet, picons and EPG"
 msgstr "Lataa PlutoTV-suosikkilista, piconit ja EPG"
 
-#: ../src/plugin.py:551
+#: ../src/plugin.py:549
 msgid "Episode"
 msgstr "Jakso"
 
@@ -58,79 +58,98 @@ msgstr "Jakso"
 msgid "Exit"
 msgstr "Poistu"
 
+#: ../src/PlutoDownload.py:333
+msgid "Fetching picons..."
+msgstr ""
+
 #: ../src/plugin.py:297
 msgid "IMDb Search"
 msgstr "IMDb-haku"
 
-#: ../src/plugin.py:643
+#: ../src/plugin.py:634
 msgid "LiveTV Bouquet last updated:"
 msgstr "LiveTV-suosikkilistan viimeisin päivitys:"
 
-#: ../src/plugin.py:647
+#: ../src/plugin.py:637
 msgid "LiveTV Bouquet needs updating. Press GREEN."
 msgstr "LiveTV-suosikkilista on päivitettävä. Paina VIHREÄ."
 
-#: ../src/plugin.py:695
+#: ../src/plugin.py:685
 #, python-format
 msgid "LiveTV bouquet %s"
 msgstr "LiveTV-suosikkilista %s"
+
+#: ../src/PlutoDownload.py:337
+msgid "LiveTV update completed"
+msgstr ""
 
 #: ../src/plugin.py:288
 msgid "Loading data... Please wait"
 msgstr "Ladataan dataa... odota"
 
-#: ../src/PlutoDownload.py:163
+#: ../src/PlutoDownload.py:169
 msgid "Local"
 msgstr "Paikallinen"
 
-#: ../src/plugin.py:301
+#: ../src/plugin.py:300
 msgid "MENU"
 msgstr "MENU"
 
-#: ../src/PlutoDownload.py:172 ../src/PlutoDownload.py:173
-#: ../src/PlutoDownload.py:177
+#: ../src/PlutoDownload.py:180 ../src/PlutoDownload.py:184
 msgid "None"
 msgstr "Ei mitään"
 
-#: ../src/PlutoDownload.py:528
+#: ../src/plugin.py:687
+msgid "Picon type"
+msgstr ""
+
+#: ../src/PlutoDownload.py:570
 msgid "Please wait..."
 msgstr "Odota..."
 
-#: ../src/plugin.py:304 ../src/plugin.py:530 ../src/plugin.py:543
-#: ../src/plugin.py:555 ../src/plugin.py:605 ../src/plugin.py:803
+#: ../src/plugin.py:303 ../src/plugin.py:528 ../src/plugin.py:541
+#: ../src/plugin.py:553 ../src/plugin.py:603 ../src/plugin.py:819
 msgid "PlutoTV"
 msgstr "PlutoTV"
 
-#: ../src/plugin.py:687
+#: ../src/plugin.py:677
 msgid "PlutoTV Setup"
 msgstr "PlutoTV:n asetukset"
 
-#: ../src/PlutoDownload.py:521
+#: ../src/PlutoDownload.py:563
 msgid "PlutoTV updating"
 msgstr "PlutoTV:n päivitys"
 
-#: ../src/plugin.py:644 ../src/plugin.py:648
+#: ../src/PlutoDownload.py:352
+msgid "Processing data..."
+msgstr ""
+
+#: ../src/plugin.py:716
 msgid "Remove LiveTV Bouquet"
 msgstr "Poista LiveTV-suosikkilista"
 
-#: ../src/plugin.py:773
+#: ../src/plugin.py:709
+msgid "Remove picons"
+msgstr ""
+
+#: ../src/plugin.py:789
 #, python-format
 msgid "Resume position at %s"
 msgstr "Jatka paikasta %s"
 
-#: ../src/plugin.py:539 ../src/plugin.py:599
+#: ../src/plugin.py:537 ../src/plugin.py:597
 msgid "Season"
 msgstr "Kausi"
 
-#: ../src/plugin.py:541
+#: ../src/plugin.py:539
 msgid "Seasons"
 msgstr "Kaudet"
 
-#: ../src/plugin.py:691
+#: ../src/plugin.py:681
 msgid "Select the country that the VoD list will be created for."
 msgstr "Valitse maa, jolle Tilaus-TV (VoD) -lista luodaan."
 
-#: ../src/plugin.py:805
+#: ../src/plugin.py:821
 msgid "Silently download PlutoTV"
 msgstr "Lataa PlutoTV hiljaisesti"
 
@@ -138,49 +157,65 @@ msgstr "Lataa PlutoTV hiljaisesti"
 msgid "TMDb Search"
 msgstr "TMDb-haku"
 
-#: ../src/PlutoDownload.py:542
+#: ../src/plugin.py:626
+msgid ""
+"The Pluto TV bouquets in your channel list have been updated.\n"
+"\n"
+"They will now be rebuilt automatically every 5 hours."
+msgstr ""
+"Sinulla on nyt päivitetty suosikkilista PlutoTV-kanavilla kanavaluettelossasi.\n"
+"\n"
+"Kaikki päivitetään automaattisesti 5 tunnin välein."
+
+#: ../src/PlutoDownload.py:582
 msgid "The download is in progress. Exit now?"
 msgstr "Lataus käynnissä. Poistutaanko nyt?"
 
-#: ../src/plugin.py:430 ../src/PlutoDownload.py:565
+#: ../src/plugin.py:428 ../src/PlutoDownload.py:610
 msgid "There is no data, it is possible that Pluto TV is not available in your country"
 msgstr "Dataa ei ole, joten PlutoTV ei ehkä ole saatavilla maassasi"
 
-#: ../src/plugin.py:642 ../src/plugin.py:646
+#: ../src/plugin.py:633 ../src/plugin.py:636
 msgid "Update LiveTV Bouquet"
 msgstr "Päivitä LiveTV-suosikkilista"
 
-#: ../src/PlutoDownload.py:533
+#: ../src/PlutoDownload.py:575
 #, python-format
 msgid "Updating: Pluto TV %s"
 msgstr "Päivitetään: PlutoTV %s"
 
-#: ../src/plugin.py:697
+#: ../src/plugin.py:688
 msgid "Used for storing video cover graphics, etc. A hard drive that goes into standby mode or a slow network mount are not good choices."
 msgstr "Käytetään videoiden kansikuvien yms. tallentamiseen. Valmiustilaan siirtyvä kiintolevy tai hidas verkkoliitos eivät ole hyviä valintoja."
+
+#: ../src/plugin.py:687
+msgid "Using service name picons means they will continue to work even if the service reference changes. Also, they can be shared between channels of the same name that don't have the same service references."
+msgstr ""
 
 #: ../src/plugin.py:285
 msgid "VOD Menu"
 msgstr "VOD-Menu"
 
-#: ../src/plugin.py:803
+#: ../src/plugin.py:819
 msgid "View video on demand and download a bouquet of live tv channels"
 msgstr "Katso tilaus-TV:ta ja lataa LiveTV-kanavien suosikkilista"
 
-#: ../src/plugin.py:691
+#: ../src/plugin.py:681
 msgid "VoD country"
 msgstr "Tilaus-TV:n (VOD) maa"
 
-#: ../src/PlutoDownload.py:562
+#: ../src/PlutoDownload.py:395
 msgid "Waiting for Channel: "
 msgstr "Odotetaan kanavaa: "
 
-#: ../src/plugin.py:635
-msgid ""
-"You now have an updated favorites list with Pluto TV channels on your channel list.\n"
-"\n"
-"Everything will be updated automatically every 5 hours."
+#: ../src/PlutoDownload.py:332
+msgid "picons"
 msgstr ""
-"Sinulla on nyt päivitetty suosikkilista PlutoTV-kanavilla kanavaluettelossasi.\n"
-"\n"
-"Kaikki päivitetään automaattisesti 5 tunnin välein."
+
+#: ../src/PlutoDownload.py:170
+msgid "service name"
+msgstr ""
+
+#: ../src/PlutoDownload.py:170
+msgid "service reference"
+msgstr ""
