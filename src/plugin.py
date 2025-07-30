@@ -23,8 +23,8 @@
 
 # for localized messages
 from . import _, PluginLanguageDomain
-from .PlutoDownload import plutoRequest, PlutoDownload, Silent, getselectedcountries  # , getClips
-from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, NUMBER_OF_LIVETV_BOUQUETS
+from .PlutoDownload import plutoRequest, PlutoDownload, Silent, getselectedcountries, PiconFetcher  # , getClips
+from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, NUMBER_OF_LIVETV_BOUQUETS, PLUGIN_ICON
 
 from skin import applySkinFactor, fonts, parameters
 
@@ -296,7 +296,6 @@ class PlutoTV(Screen):
 		self.mdb = isPluginInstalled("tmdb") and "tmdb" or isPluginInstalled("IMDb") and "imdb"
 		self.yellowLabel = _("TMDb Search") if self.mdb else (_("IMDb Search") if self.mdb else "")
 		self["key_green"] = StaticText()
-		self["key_blue"] = StaticText()
 		self["updated"] = StaticText()
 		self["key_menu"] = StaticText(_("MENU"))
 		self["poster"] = Pixmap()
@@ -320,7 +319,6 @@ class PlutoTV(Screen):
 			"cancel": self.exit,
 			"save": self.green,
 			"yellow": self.MDB,
-			"blue": self.blue,
 			"historyBack": self.back,
 			"menu": self.loadSetup,
 		}, -1)
@@ -624,15 +622,8 @@ class PlutoTV(Screen):
 	def green(self):
 		self.session.openWithCallback(self.endupdateLive, PlutoDownload)
 
-	def blue(self):
-		if self["key_blue"].text:
-			Silent.stop()
-			from enigma import eDVBDB
-			eDVBDB.getInstance().removeBouquet(re.escape(BOUQUET_FILE) % ".*")
-			self.updatebutton()
-
 	def endupdateLive(self, ret=None):
-		self.session.openWithCallback(self.updatebutton, MessageBox, _("You now have an updated favorites list with Pluto TV channels on your channel list.\n\nEverything will be updated automatically every 5 hours."), type=MessageBox.TYPE_INFO, timeout=10)
+		self.session.openWithCallback(self.updatebutton, MessageBox, _("The Pluto TV bouquets in your channel list have been updated.\n\nThey will now be rebuilt automatically every 5 hours."), type=MessageBox.TYPE_INFO, timeout=10)
 
 	def updatebutton(self, ret=None):
 		bouquets = open("/etc/enigma2/bouquets.tv", "r").read()
@@ -641,15 +632,12 @@ class PlutoTV(Screen):
 			updated = strftime(" %x %H:%M", localtime(int(last)))
 			self["key_green"].text = _("Update LiveTV Bouquet")
 			self["updated"].text = _("LiveTV Bouquet last updated:") + updated
-			self["key_blue"].text = _("Remove LiveTV Bouquet")
 		elif "pluto_tv" in bouquets:
 			self["key_green"].text = _("Update LiveTV Bouquet")
 			self["updated"].text = _("LiveTV Bouquet needs updating. Press GREEN.")
-			self["key_blue"].text = _("Remove LiveTV Bouquet")
 		else:
 			self["key_green"].text = _("Create LiveTV Bouquet")
 			self["updated"].text = ""
-			self["key_blue"].text = ""
 
 	def exit(self, *args, **kwargs):
 		if self.history:
@@ -683,7 +671,9 @@ class PlutoTV(Screen):
 
 class PlutoSetup(Setup):
 	def __init__(self, session):
-		Setup.__init__(self, session)
+		Setup.__init__(self, session, yellow_button={"function": self.yellow}, blue_button={"function": self.blue})
+		self.updateYellowButton()
+		self.updateBlueButton()
 		self.setTitle(_("PlutoTV Setup"))
 
 	def createSetup(self):
@@ -694,7 +684,7 @@ class PlutoSetup(Setup):
 			if n == 1 or getattr(config.plugins.plutotv, "live_tv_country" + str(n - 1)).value:
 				configList.append((_("LiveTV bouquet %s") % n, getattr(config.plugins.plutotv, "live_tv_country" + str(n)), _("Country for which LiveTV bouquet %s will be created.") % n))
 		configList.append(("---",))
-		configList.append((_("Picon type"), config.plugins.plutotv.snp, _("Using service name picons means they will continue to work even if the service reference changes. Also, they can be shared between channels of the same name that don't have the same service references.")))
+		configList.append((_("Picon type"), config.plugins.plutotv.picons, _("Using service name picons means they will continue to work even if the service reference changes. Also, they can be shared between channels of the same name that don't have the same service references.")))
 		configList.append((_("Data location"), config.plugins.plutotv.datalocation, _("Used for storing video cover graphics, etc. A hard drive that goes into standby mode or a slow network mount are not good choices.")))
 		self["config"].list = configList
 
@@ -713,6 +703,31 @@ class PlutoSetup(Setup):
 
 	def exit(self):
 		self.session.openWithCallback(self.close, PlutoTV)
+
+	def updateYellowButton(self):
+		if os.path.isdir(PiconFetcher().pluginPiconDir):
+			self["key_yellow"].text = _("Remove picons")
+		else:
+			self["key_yellow"].text = ""
+
+	def updateBlueButton(self):
+		bouquets = open("/etc/enigma2/bouquets.tv", "r").read()
+		if "pluto_tv" in bouquets:
+			self["key_blue"].text = _("Remove LiveTV Bouquet")
+		else:
+			self["key_blue"].text = ""
+
+	def yellow(self):
+		if self["key_yellow"].text:
+			PiconFetcher().removeall()
+			self.updateYellowButton()
+
+	def blue(self):
+		if self["key_blue"].text:
+			Silent.stop()
+			from enigma import eDVBDB
+			eDVBDB.getInstance().removeBouquet(re.escape(BOUQUET_FILE) % ".*")
+			self.updateBlueButton()
 
 
 class Pluto_Player(MoviePlayer):
@@ -801,7 +816,7 @@ def system(session, **kwargs):
 
 def Plugins(**kwargs):
 	return [
-		PluginDescriptor(name=_("PlutoTV"), where=PluginDescriptor.WHERE_PLUGINMENU, icon="plutotv.png", description=_("View video on demand and download a bouquet of live tv channels"), fnc=system, needsRestart=True),
+		PluginDescriptor(name=_("PlutoTV"), where=PluginDescriptor.WHERE_PLUGINMENU, icon=PLUGIN_ICON, description=_("View video on demand and download a bouquet of live tv channels"), fnc=system, needsRestart=True),
 		PluginDescriptor(name=_("Download PlutoTV bouquet, picons and EPG"), where=PluginDescriptor.WHERE_EXTENSIONSMENU, fnc=Download_PlutoTV, needsRestart=True),
 		PluginDescriptor(name=_("Silently download PlutoTV"), where=PluginDescriptor.WHERE_SESSIONSTART, fnc=autostart),
 	]

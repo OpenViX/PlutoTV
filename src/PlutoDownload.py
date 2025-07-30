@@ -26,10 +26,10 @@
 
 # for localized messages
 from . import _
-from .Variables import TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, BOUQUET_NAME, NUMBER_OF_LIVETV_BOUQUETS
+from .Variables import TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, BOUQUET_NAME, NUMBER_OF_LIVETV_BOUQUETS, PLUGIN_ICON
 
 from Components.ActionMap import ActionMap
-from Components.config import ConfigSelection, ConfigSubsection, ConfigBoolean, config
+from Components.config import ConfigSelection, ConfigSubsection, config
 from Components.Label import Label
 from Components.ProgressBar import ProgressBar
 from Screens.MessageBox import MessageBox
@@ -43,6 +43,7 @@ import datetime
 import os
 import re
 import requests
+import shutil
 import time
 import uuid
 from urllib.parse import quote
@@ -166,7 +167,7 @@ TSIDS = {cc: ("%X" % (i + 1)) for i, cc in enumerate(COUNTRY_NAMES)}
 
 config.plugins.plutotv = ConfigSubsection()
 config.plugins.plutotv.country = ConfigSelection(default="local", choices=[("local", _("Local"))] + list(COUNTRY_NAMES.items()))
-config.plugins.plutotv.snp = ConfigBoolean(default=True, descriptions={False: _("service reference"), True: _("service name")}, graphic=False)
+config.plugins.plutotv.picons = ConfigSelection(default="snp", choices=[("snp", _("service name")), ("srp", _("service reference")), ("", _("None"))])
 
 
 def getselectedcountries(skip=0):
@@ -187,16 +188,25 @@ for n in range(1, NUMBER_OF_LIVETV_BOUQUETS + 1):
 
 
 class PiconFetcher:
-	def __init__(self, parent):
+	def __init__(self, parent=None):
 		self.parent = parent
-		self.picon_path = self.getPiconPath()
+		self.piconDir = self.getPiconPath()
+		self.pluginPiconDir = os.path.join(self.piconDir, "PlutoTV")
 		piconWidth = 220
 		piconHeight = 132
 		self.resolutionStr = f"?h={piconHeight}&w={piconWidth}"
 		self.piconList = []
 
+	def createFolders(self):
+		os.makedirs(self.piconDir, exist_ok=True)
+		os.makedirs(self.pluginPiconDir, exist_ok=True)
+		self.defaultIcon = os.path.join(self.pluginPiconDir, PLUGIN_ICON)
+		shutil.copy(os.path.join(PLUGIN_FOLDER, PLUGIN_ICON), self.defaultIcon)
+
 	def addPicon(self, ref, name, url, silent):
-		piconname = os.path.join(self.picon_path, ch_name + ".png") if config.plugins.plutotv.snp.value and (ch_name := sanitizeFilename(name.lower())) else os.path.join(self.picon_path, ref.replace(":", "_") + ".png")
+		if not config.plugins.plutotv.picons.value:
+			return
+		piconname = os.path.join(self.piconDir, ch_name + ".png") if config.plugins.plutotv.picons.value == "snp" and (ch_name := sanitizeFilename(name.lower())) else os.path.join(self.piconDir, ref.replace(":", "_") + ".png")
 		one_week_ago = time.time() - 60 * 60 * 24 * 7
 		if not (fileExists(piconname) and (silent or os.path.getmtime(piconname) > one_week_ago)):
 			self.piconList.append((url, piconname))
@@ -205,6 +215,7 @@ class PiconFetcher:
 		maxthreads = 100  # make configurable
 		self.counter = 0
 		failed = []
+		self.createFolders()
 		if self.piconList:
 			threads = [threading.Thread(target=self.downloadURL, args=(url, filename)) for url, filename in self.piconList]
 			for thread in threads:
@@ -220,18 +231,44 @@ class PiconFetcher:
 			print("[Fetcher] all fetched")
 
 	def downloadURL(self, url, piconname):
+		filepath = os.path.join(self.pluginPiconDir, piconname.removeprefix(self.piconDir))
 		self.counter += 1
 		try:
 			response = requests.get(f"{url}{self.resolutionStr}", timeout=2.50, headers={"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"})
 			response.raise_for_status()
 			content_type = response.headers.get('content-type')
-			if content_type and content_type.lower() != 'image/png':
-				return
-			with open(piconname, "wb") as f:
-				f.write(response.content)
-			threads.deferToThread(self.parent.updateProgressBar, self.counter)
+			if not (content_type and content_type.lower() != 'image/png'):
+				with open(filepath, "wb") as f:
+					f.write(response.content)
 		except requests.exceptions.RequestException:
 			pass
+		if not fileExists(filepath):  # it seems nothing was downloaded
+			filepath = self.defaultIcon
+		self.makesoftlink(filepath, piconname)
+		if self.parent:
+			threads.deferToThread(self.parent.updateProgressBar, self.counter)
+
+	def makesoftlink(self, filepath, softlinkpath):
+		svgpath = softlinkpath.removesuffix(".png") + ".svg"
+		islink = os.path.islink(softlinkpath)
+		# isfile follows symbolic links so we need to check this is not a symbolic link first
+		# or if user.svg exists do not write symbolic link
+		if not islink and os.path.isfile(softlinkpath) or os.path.isfile(svgpath):
+			return  # if a file exists here don't touch it, it is not ours
+		if islink:
+			if os.readlink(softlinkpath) == filepath:
+				return
+			os.remove(softlinkpath)
+		os.symlink(filepath, softlinkpath)
+
+	def removeall(self):
+		if os.path.exists(self.piconDir):
+			for f in os.listdir(self.piconDir):
+				item = os.path.join(self.piconDir, f)
+				if os.path.islink(item) and self.pluginPiconDir in os.readlink(item):
+					os.remove(item)
+		if os.path.exists(self.pluginPiconDir):
+			shutil.rmtree(self.pluginPiconDir)
 
 	@staticmethod
 	def getPiconPath():
@@ -296,9 +333,10 @@ class PlutoDownloadBase():
 				threads.deferToThread(self.updateAction, _("picons"))  # GUI widget
 				threads.deferToThread(self.updateStatus, _("Fetching picons..."))  # GUI widget
 				self.piconFetcher.fetchPicons()
+				threads.deferToThread(self.updateProgressBar, self.total)  # reset
 			self.piconFetcher = None
 			threads.deferToThread(self.updateStatus, _("LiveTV update completed"))  # GUI widget
-			time.sleep(5)
+			time.sleep(3)
 			self.exitOk()
 			self.start()
 
@@ -311,8 +349,7 @@ class PlutoDownloadBase():
 		self.guideList.clear()
 		self.categories.clear()
 		threads.deferToThread(self.updateAction, cc)  # GUI widget
-		if self.total:  # only reset progress bar if the total has already been set
-			threads.deferToThread(self.updateProgressBar, 0)  # reset
+		threads.deferToThread(self.updateProgressBar, 0)  # reset
 		threads.deferToThread(self.updateStatus, _("Processing data..."))  # GUI widget
 		channels = sorted(plutoRequest.getChannels(cc), key=lambda x: x["number"])
 		guide = self.getGuidedata(cc)
@@ -513,7 +550,7 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 	skin = f"""
 		<screen name="PlutoTVdownload" position="60,60" resolution="1920,1080" size="615,195" flags="wfNoBorder" backgroundColor="#ff000000">
 		<eLabel position="0,0" size="615,195" zPosition="-1" alphatest="blend" backgroundColor="#2d101214" cornerRadius="8" widgetBorderWidth="2" widgetBorderColor="#2d888888"/>
-		<ePixmap position="15,80" size="120,45" pixmap="{PLUGIN_FOLDER}/plutotv.png" scale="1" alphatest="blend" transparent="1" zPosition="10"/>
+		<ePixmap position="15,80" size="120,45" pixmap="{PLUGIN_FOLDER}/{PLUGIN_ICON}" scale="1" alphatest="blend" transparent="1" zPosition="10"/>
 		<widget name="action" halign="left" valign="center" position="13,9" size="433,30" font="Regular;25" foregroundColor="#dfdfdf" transparent="1" backgroundColor="#000000" borderColor="black" borderWidth="1" noWrap="1"/>
 		<widget name="progress" position="150,97" size="420,12" borderWidth="0" backgroundColor="#1143495b" pixmap="{PLUGIN_FOLDER}/images/progresoHD.png" zPosition="2" alphatest="blend" />
 		<eLabel name="progess_background" position="150,97" size="420,12" backgroundColor="#102a3b58" />
@@ -560,7 +597,7 @@ class PlutoDownload(PlutoDownloadBase, Screen):
 		try:
 			progress = ((param + 1) * 100) // self.total
 		except:
-			progress = 100
+			progress = 0
 		else:
 			if progress > 100:
 				progress = 100
