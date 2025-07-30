@@ -48,7 +48,7 @@ from Tools.Hex2strColor import Hex2strColor
 from Tools.LoadPixmap import LoadPixmap
 from Tools import Notifications
 
-from enigma import BT_KEEP_ASPECT_RATIO, BT_SCALE, eConsoleAppContainer, eListboxPythonMultiContent, ePicLoad, eServiceReference, eTimer, gFont, iPlayableService
+from enigma import BT_KEEP_ASPECT_RATIO, BT_SCALE, eListboxPythonMultiContent, ePicLoad, eServiceReference, eTimer, gFont, iPlayableService
 
 import os
 from gettext import dngettext
@@ -57,6 +57,8 @@ import re
 from time import time, strftime, gmtime, localtime
 from urllib.parse import quote
 
+from twisted.internet import threads  # for fetching posters
+import requests
 
 DATA_FOLDER = ""
 
@@ -162,54 +164,31 @@ resumePointsInstance = ResumePoints()
 
 
 class DownloadPosters:
-	EVENT_DOWNLOAD = 0
-	EVENT_DONE = 1
-	EVENT_ERROR = 2
-
-	def __init__(self, __type):
-		self.cmd = eConsoleAppContainer()
-		self.callbackList = []
-		self.type = __type
-
-	def startCmd(self, name, url):
-		if not name:
-			return
+	def __init__(self):
 		if not DATA_FOLDER:
 			return
 		os.makedirs(DATA_FOLDER, exist_ok=True)  # create data folder if not exists
 
-		rute = "wget"
+	def downloadURL(self, url, name, callback):
+		success = False
+		if not name or not DATA_FOLDER:
+			return
 		filename = os.path.join(DATA_FOLDER, name)
-
-		rute += " -O " + filename
-
-		self.filename = filename
-		rute += " " + url
-
 		if fileExists(filename):
-			self.callCallbacks(self.EVENT_DONE, self.filename, self.type)
+			success = True
 		else:
-			self.runCmd(rute)
-
-	def runCmd(self, cmd):
-		print("[DownloadPosters] runCmand, executing", cmd)
-		self.cmd.appClosed.append(self.cmdFinished)
-		if self.cmd.execute(cmd):
-			self.cmdFinished(-1)
-
-	def cmdFinished(self, retval):
-		self.callCallbacks(self.EVENT_DONE, self.filename, self.type)
-		self.cmd.appClosed.remove(self.cmdFinished)
-
-	def callCallbacks(self, event, filename=None, __type=None):
-		for callback in self.callbackList:
-			callback(event, filename, __type)
-
-	def addCallback(self, callback):
-		self.callbackList.append(callback)
-
-	def removeCallback(self, callback):
-		self.callbackList.remove(callback)
+			try:
+				response = requests.get(url, timeout=2.50, headers={"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"})
+				response.raise_for_status()
+				content_type = response.headers.get('content-type')
+				if content_type and content_type.lower() in ('image/jpeg',):
+					with open(filename, "wb") as f:
+						f.write(response.content)
+						success = True
+			except requests.exceptions.RequestException:
+				pass
+		if success:
+			threads.deferToThread(callback, filename, name)
 
 
 class PlutoList(MenuList):
@@ -282,6 +261,7 @@ class PlutoTV(Screen):
 
 		self.colors = parameters.get("PlutoTvColors", [])  # First item must be default text colour. If parameter is missing adding colours will be skipped.
 
+		self.downloadPosters = DownloadPosters()
 		self.titlemenu = _("VOD Menu")
 		self["feedlist"] = PlutoList([])
 		self["playlist"] = StaticText(self.titlemenu)
@@ -355,12 +335,11 @@ class PlutoTV(Screen):
 				self.numSeasons = film[10]
 			self.vinfo = info
 			picname = film[0] + ".jpg"
+			self.picname = picname
 			pic = film[6]
 			if len(picname) > 5:
 				self["poster"].hide()
-				down = DownloadPosters("poster")
-				down.addCallback(self.downloadPostersCallback)
-				down.startCmd(picname, pic)
+				threads.deferToThread(self.downloadPosters.downloadURL, pic, picname, self.downloadPostersCallback)  # url, name, callback
 
 		elif __type == "seasons":
 			self.eptitle = ""
@@ -385,8 +364,8 @@ class PlutoTV(Screen):
 		spacer = "\n" if (vinfoColored or self.description) and (eptitleColored or self.epinfo) else ""
 		self["info"].text = "\n".join([x for x in (vinfoColored, self.description, spacer, eptitleColored, self.epinfo) if x])
 
-	def downloadPostersCallback(self, event, filename=None, __type=None):
-		if __type == "poster" and filename:
+	def downloadPostersCallback(self, filename, name):
+		if name == self.picname:  # check if this is the current image we are waiting for
 			self.decodePoster(filename)
 
 	def decodePoster(self, image):
