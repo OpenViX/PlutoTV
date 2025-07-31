@@ -237,9 +237,9 @@ class PiconFetcher:
 			response = requests.get(f"{url}{self.resolutionStr}", timeout=2.50, headers={"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"})
 			response.raise_for_status()
 			content_type = response.headers.get('content-type')
-			if not (content_type and content_type.lower() != 'image/png'):
+			if content_type and content_type.lower() == 'image/png' and len(rc := response.content):
 				with open(filepath, "wb") as f:
-					f.write(response.content)
+					f.write(rc)
 		except requests.exceptions.RequestException:
 			pass
 		if not fileExists(filepath):  # it seems nothing was downloaded
