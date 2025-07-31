@@ -240,27 +240,27 @@ class PlutoTV(Screen):
 			<widget source="global.CurrentTime" render="Label" position="e-400,48" size="300,55" font="Regular; 43" halign="right" zPosition="5" backgroundColor="#00000000" transparent="1">
 				<convert type="ClockToText">Format:%H:%M</convert>
 			</widget>
-	
+
 			<widget name="loading" position="center,center" size="800,60" font="Regular;50" backgroundColor="#00000000" transparent="0" zPosition="10" halign="center" valign="center" />
 			<widget source="playlist" render="Label" position="400,48" size="1150,55" font="Regular;40" backgroundColor="#00000000" transparent="5" foregroundColor="#00ffff00" zPosition="2" halign="center" />
 			<ePixmap position="70,170" size="615,740" pixmap="extensions/transblack.png" zPosition="1" alphatest="blend" transparent="1"/><!-- list background -->
 			<widget name="feedlist" position="70,170" size="615,728" scrollbarMode="showOnDemand" enableWrapAround="1" transparent="1" zPosition="5" foregroundColor="#00ffffff" backgroundColorSelected="#00ff0063" backgroundColor="#00000000" />
-	
+
 			<widget source="vtitle" render="Pixmap" pixmap="{PLUGIN_FOLDER}/images/transblack.png" position="735,170" size="1115,740" zPosition="1" transparent="1" alphatest="blend"><!-- background for all info -->
 				<convert type="ConditionalShowHide"/>
 			</widget>
 			<widget source="vtitle" render="Label" position="778,180" size="1065,48" font="Regular;35" backgroundColor="#00000000" foregroundColor="#00ffff00" zPosition="3" transparent="1" />
 			<widget name="info" position="1238,235" size="604,675" font="Regular;28" backgroundColor="#00000000" foregroundColor="#00ffffff" zPosition="3" transparent="1" />
 			<widget name="poster" position="735,235" size="483,675" zPosition="3" alphatest="blend" />
-	
+
 			<widget source="updated" render="Pixmap" pixmap="extensions/transblack.png" position="70,950" size="615,50" zPosition="1" transparent="1" alphatest="blend"><!-- updated background -->
 				<convert type="ConditionalShowHide"/>
 			</widget>
 			<widget source="updated" render="Label" position="70,950" size="615,50" font="Regular;25" zPosition="5" transparent="1" valign="center" halign="center"/>
-	
+
 			<ePixmap position="0,e-60" size="1920,60" pixmap="{PLUGIN_FOLDER}/images/transblack.png" zPosition="1" alphatest="blend" transparent="1" cornerRadius="12"/><!-- key background -->
-			<widget addon="ColorButtonsSequence" connection="key_red,key_green,key_yellow,key_blue" 
-				textColors="key_red:#00ff0808,key_green:#0004c81b,key_yellow:#00edf506,key_blue:#00077cf5" 
+			<widget addon="ColorButtonsSequence" connection="key_red,key_green,key_yellow,key_blue"
+				textColors="key_red:#00ff0808,key_green:#0004c81b,key_yellow:#00edf506,key_blue:#00077cf5"
 				position="224,1030" size="1694,42" font="Regular;33" backgroundColor="#00000000" transparent="1" alignment="left" zPosition="10" spacing="10" />
 			<ePixmap pixmap="buttons/key_menu.png" alphatest="blend" position="30,1031" size="52,38" backgroundColor="#00000000" transparent="1" zPosition="2"/>
 		</screen>"""
