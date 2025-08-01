@@ -28,16 +28,18 @@ from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FIL
 
 from skin import applySkinFactor, fonts, parameters
 
-from Components.ActionMap import ActionMap
+from Components.ActionMap import HelpableActionMap
 from Components.AVSwitch import AVSwitch
 from Components.config import config, ConfigSelection
 from Components.Label import Label
 from Components.MenuList import MenuList
 from Components.MultiContent import MultiContentEntryText, MultiContentEntryPixmapAlphaBlend
 from Components.Pixmap import Pixmap
+from Components.ScrollLabel import ScrollLabel
 from Components.ServiceEventTracker import ServiceEventTracker
 from Components.Sources.StaticText import StaticText
 from Plugins.Plugin import PluginDescriptor
+from Screens.HelpMenu import HelpableScreen
 from Screens.InfoBar import MoviePlayer
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
@@ -231,7 +233,7 @@ class PlutoList(MenuList):
 		return res
 
 
-class PlutoTV(Screen):
+class PlutoTV(Screen, HelpableScreen):
 	skin = f"""
 		<screen name="PlutoTV" zPosition="2" position="0,0" resolution="1920,1080" size="1920,1080" flags="wfNoBorder" title="Pluto TV" transparent="0">
 			<ePixmap pixmap="{PLUGIN_FOLDER}/images/plutotv-backdrop.jpg" position="0,0" size="1920,1080" zPosition="-2" alphatest="blend" />
@@ -246,11 +248,11 @@ class PlutoTV(Screen):
 			<ePixmap position="70,170" size="615,740" pixmap="extensions/transblack.png" zPosition="1" alphatest="blend" transparent="1"/><!-- list background -->
 			<widget name="feedlist" position="70,170" size="615,728" scrollbarMode="showOnDemand" enableWrapAround="1" transparent="1" zPosition="5" foregroundColor="#00ffffff" backgroundColorSelected="#00ff0063" backgroundColor="#00000000" />
 	
-			<widget source="vtitle" render="Pixmap" pixmap="{PLUGIN_FOLDER}/images/transblack.png" position="735,170" size="1115,740" zPosition="1" transparent="1" alphatest="blend"><!-- background for all info -->
+			<widget name="info" position="1238,235" size="604,675" font="Regular;28" backgroundColor="#00000000" foregroundColor="#00ffffff" zPosition="3" transparent="1" />
+			<widget source="vtitle" render="Pixmap" pixmap="{PLUGIN_FOLDER}/images/transblack.png" position="735,170" size="1115,740" zPosition="0" transparent="1" alphatest="blend"><!-- background for all info -->
 				<convert type="ConditionalShowHide"/>
 			</widget>
 			<widget source="vtitle" render="Label" position="778,180" size="1065,48" font="Regular;35" backgroundColor="#00000000" foregroundColor="#00ffff00" zPosition="3" transparent="1" />
-			<widget name="info" position="1238,235" size="604,675" font="Regular;28" backgroundColor="#00000000" foregroundColor="#00ffffff" zPosition="3" transparent="1" />
 			<widget name="poster" position="735,235" size="483,675" zPosition="3" alphatest="blend" />
 	
 			<widget source="updated" render="Pixmap" pixmap="extensions/transblack.png" position="70,950" size="615,50" zPosition="1" transparent="1" alphatest="blend"><!-- updated background -->
@@ -268,6 +270,7 @@ class PlutoTV(Screen):
 	def __init__(self, session):
 		self.session = session
 		Screen.__init__(self, session)
+		HelpableScreen.__init__(self)
 
 		self.colors = parameters.get("PlutoTvColors", [])  # First item must be default text colour. If parameter is missing adding colours will be skipped.
 
@@ -284,14 +287,14 @@ class PlutoTV(Screen):
 		self["key_red"] = StaticText(_("Exit"))
 		self["key_yellow"] = StaticText()
 		self.mdb = isPluginInstalled("tmdb") and "tmdb" or isPluginInstalled("IMDb") and "imdb"
-		self.yellowLabel = _("TMDb Search") if self.mdb else (_("IMDb Search") if self.mdb else "")
+		self.yellowLabel = _("TMDb Search") if self.mdb == "tmdb" else (_("IMDb Search") if self.mdb else "")
 		self["key_green"] = StaticText()
 		self["updated"] = StaticText()
 		self["key_menu"] = StaticText(_("MENU"))
 		self["poster"] = Pixmap()
 		self["logo"] = Pixmap()
 		self.title = _("PlutoTV") + " - " + self.titlemenu
-		self["info"] = Label()  # combined info for fluid layout
+		self["info"] = ScrollLabel()  # combined info for fluid layout
 
 		self["feedlist"].onSelectionChanged.append(self.update_data)
 		self.films = []
@@ -303,14 +306,20 @@ class PlutoTV(Screen):
 		self.sc = AVSwitch().getFramebufferScale()
 		self.picload = ePicLoad()
 
-		self["actions"] = ActionMap(["SetupActions", "ColorActions", "InfobarChannelSelection", "MenuActions"],
+		self["actions"] = HelpableActionMap(self, ["SetupActions", "ColorActions", "InfobarChannelSelection", "MenuActions"],
 		{
-			"ok": self.action,
-			"cancel": self.exit,
-			"save": self.green,
-			"yellow": self.MDB,
-			"historyBack": self.back,
-			"menu": self.loadSetup,
+			"ok": (self.action, _("Go forward one level incuding start playback")),
+			"cancel": (self.exit, _("Go back one level including exit")),
+			"save": (self.green, _("Create or update PlutoTV live bouquets")),
+			"yellow": (self.MDB, _("Search for information in %s") % (_("The Movie Database") if self.mdb == "tmdb" else _("the Internet Movie Database"))),
+			"historyBack": (self.back, _("Go back one level")),
+			"menu": (self.loadSetup, _("Open the plugin configuration screen")),
+		}, -1)
+
+		self["InfoNavigationActions"] = HelpableActionMap(self, ["NavigationActions"],
+		{
+			"pageUp": (self["info"].pageUp, _("Scroll information")),
+			"pageDown": (self["info"].pageDown, _("Scroll information")),
 		}, -1)
 
 		self.updatebutton()
@@ -372,7 +381,7 @@ class PlutoTV(Screen):
 		vinfoColored = self.vinfo and self.addColor(self.vinfo)
 		eptitleColored = self.eptitle and self.addColor(self.eptitle)
 		spacer = "\n" if (vinfoColored or self.description) and (eptitleColored or self.epinfo) else ""
-		self["info"].text = "\n".join([x for x in (vinfoColored, self.description, spacer, eptitleColored, self.epinfo) if x])
+		self["info"].setText("\n".join([x for x in (vinfoColored, self.description, spacer, eptitleColored, self.epinfo) if x]))
 
 	def downloadPostersCallback(self, filename, name):
 		if name == self.picname:  # check if this is the current image we are waiting for
