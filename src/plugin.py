@@ -245,14 +245,15 @@ class PlutoTV(Screen, HelpableScreen):
 
 			<widget name="loading" position="center,center" size="800,60" font="Regular;50" backgroundColor="#00000000" transparent="0" zPosition="10" halign="center" valign="center" />
 			<widget source="playlist" render="Label" position="400,48" size="1150,55" font="Regular;40" backgroundColor="#00000000" transparent="5" foregroundColor="#00ffff00" zPosition="2" halign="center" />
-			<ePixmap position="70,170" size="615,745" pixmap="extensions/transblack.png" zPosition="1" alphatest="blend" transparent="1"/><!-- list background -->
+			<ePixmap position="70,170" size="615,750" pixmap="extensions/transblack.png" zPosition="1" alphatest="blend" transparent="1"/><!-- list background -->
 			<widget name="feedlist" position="70,170" size="615,728" scrollbarMode="showOnDemand" enableWrapAround="1" transparent="1" zPosition="5" foregroundColor="#00ffffff" backgroundColorSelected="#00ff0063" backgroundColor="#00000000" />
-			<widget source="vtitle" render="Pixmap" pixmap="{PLUGIN_FOLDER}/images/transblack.png" position="685,170" size="1165,745" zPosition="0" transparent="1" alphatest="blend"><!-- background for all info -->
+			<widget source="vtitle" render="Pixmap" pixmap="{PLUGIN_FOLDER}/images/transblack.png" position="685,170" size="1165,750" zPosition="0" transparent="1" alphatest="blend"><!-- background for all info -->
 				<convert type="ConditionalShowHide"/>
 			</widget>
 			<widget source="vtitle" render="Label" position="778,180" size="1065,48" font="Regular;35" backgroundColor="#00000000" foregroundColor="#00ffff00" zPosition="3" transparent="1" />
-			<widget name="poster" position="735,235" size="483,675" zPosition="3" alphatest="blend" />
-			<widget name="info" position="1238,235" size="604,675" font="Regular;28" backgroundColor="#00000000" foregroundColor="#00ffffff" zPosition="3" transparent="1" />
+			<widget name="posterBG" position="733,233" size="472,679" widgetBorderWidth="2" font="Regular;0" backgroundColor="black" foregroundColor="black" widgetBorderColor="#00ffde2b" cornerRadius="27" zPosition="3" alphatest="blend"/>
+			<widget name="poster" position="735,235" size="468,675" zPosition="5" cornerRadius="25" backgroundColor="black" transparent="1" alphatest="blend"/>
+			<widget name="info" position="1223,235" size="619,675" zPosition="5" font="Regular;27" transparent="1" />
 
 			<widget source="updated" render="Pixmap" pixmap="extensions/transblack.png" position="70,950" size="615,50" zPosition="1" transparent="1" alphatest="blend"><!-- updated background -->
 				<convert type="ConditionalShowHide"/>
@@ -264,6 +265,7 @@ class PlutoTV(Screen, HelpableScreen):
 				textColors="key_red:#00ff0808,key_green:#0004c81b,key_yellow:#00edf506,key_blue:#00077cf5"
 				position="224,1030" size="1694,42" font="Regular;33" backgroundColor="#00000000" transparent="1" alignment="left" zPosition="10" spacing="10" />
 			<ePixmap pixmap="buttons/key_menu.png" alphatest="blend" position="30,1031" size="52,38" backgroundColor="#00000000" transparent="1" zPosition="2"/>
+			<ePixmap pixmap="buttons/key_help.png" alphatest="blend" position="82,1031" size="52,38" backgroundColor="#00000000" transparent="1" zPosition="2"/>
 		</screen>"""
 
 	def __init__(self, session):
@@ -291,6 +293,9 @@ class PlutoTV(Screen, HelpableScreen):
 		self["updated"] = StaticText()
 		self["key_menu"] = StaticText(_("MENU"))
 		self["poster"] = Pixmap()
+		self["posterBG"] = Label()
+		self["poster"].hide()
+		self["posterBG"].hide()
 		self["logo"] = Pixmap()
 		self.title = _("PlutoTV") + " - " + self.titlemenu
 		self["info"] = ScrollLabel()  # combined info for fluid layout
@@ -338,6 +343,7 @@ class PlutoTV(Screen, HelpableScreen):
 		self["key_yellow"].text = ""
 		if __type == "menu":
 			self["poster"].hide()
+			self["posterBG"].hide()
 
 		if __type in ("movie", "series"):
 			film = self.films[index]
@@ -357,6 +363,7 @@ class PlutoTV(Screen, HelpableScreen):
 			pic = film[6]
 			if len(picname) > 5:
 				self["poster"].hide()
+				self["posterBG"].hide()
 				threads.deferToThread(self.downloadPosters.downloadURL, pic, picname, self.downloadPostersCallback)  # url, name, callback
 
 		elif __type == "seasons":
@@ -414,6 +421,7 @@ class PlutoTV(Screen, HelpableScreen):
 			if ptr is not None:
 				self["poster"].setPixmap(ptr.__deref__())
 				self["poster"].show()
+				self["posterBG"].show()
 		except Exception as ex:
 			print("[PlutoScreen] showImage, ERROR", ex)
 
