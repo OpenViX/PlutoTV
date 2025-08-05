@@ -310,15 +310,20 @@ class PlutoTV(Screen, HelpableScreen):
 		self.sc = AVSwitch().getFramebufferScale()
 		self.picload = ePicLoad()
 
-		self["actions"] = HelpableActionMap(self, ["SetupActions", "ColorActions", "InfobarChannelSelection", "MenuActions"],
+		self["actions"] = HelpableActionMap(self, ["SetupActions", "InfobarChannelSelection", "MenuActions"],
 		{
 			"ok": (self.action, _("Go forward one level incuding starting playback")),
 			"cancel": (self.exit, _("Go back one level including exiting")),
 			"save": (self.green, _("Create or update PlutoTV live bouquets")),
-			"yellow": (self.MDB, _("Search for information in %s") % (_("The Movie Database") if self.mdb == "tmdb" else _("the Internet Movie Database"))),
 			"historyBack": (self.back, _("Go back one level")),
 			"menu": (self.loadSetup, _("Open the plugin configuration screen")),
 		}, -1)
+
+		self["MDBActions"] = HelpableActionMap(self, ["ColorActions"],
+		{
+			"yellow": (self.MDB, _("Search for information in %s") % (_("The Movie Database") if self.mdb == "tmdb" else _("the Internet Movie Database"))),
+		}, -1)
+		self["MDBActions"].setEnabled(False)
 
 		self["InfoNavigationActions"] = HelpableActionMap(self, ["NavigationActions"],
 		{
@@ -336,10 +341,11 @@ class PlutoTV(Screen, HelpableScreen):
 		self.TimerTemp.start(10, 1)
 
 	def update_data(self):
-		if len(self["feedlist"].list) == 0:
+		if not (selection := self.getSelection()):
 			return
-		index, name, __type, _id = self.getSelection()
+		index, name, __type, _id = selection
 		picname = None
+		self["MDBActions"].setEnabled(False)
 		self["key_yellow"].text = ""
 		if __type == "menu":
 			self["poster"].hide()
@@ -350,6 +356,7 @@ class PlutoTV(Screen, HelpableScreen):
 			self.description = film[2].decode("utf-8")
 			self["vtitle"].text = film[1].decode("utf-8")
 			info = film[4].decode("utf-8") + "       "
+			self["MDBActions"].setEnabled(True)
 			self["key_yellow"].text = self.yellowLabel
 
 			if __type == "movie":
@@ -651,7 +658,9 @@ class PlutoTV(Screen, HelpableScreen):
 			self.close()
 
 	def MDB(self):
-		index, name, __type, _id = self.getSelection()
+		if not (selection := self.getSelection()):
+			return
+		index, name, __type, _id = selection
 		if __type in ("movie", "series") and self.mdb:
 			if self.mdb == "tmdb":
 				from Plugins.Extensions.tmdb.tmdb import tmdbScreen
