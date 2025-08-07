@@ -245,7 +245,7 @@ class PlutoTV(Screen, HelpableScreen):
 
 			<widget name="loading" position="center,center" size="800,60" font="Regular;50" backgroundColor="#00000000" transparent="0" zPosition="10" halign="center" valign="center" />
 			<widget source="playlist" render="Label" position="400,48" size="1150,55" font="Regular;40" backgroundColor="#00000000" transparent="5" foregroundColor="#00ffff00" zPosition="2" halign="center" />
-			<ePixmap position="70,170" size="615,750" pixmap="extensions/transblack.png" zPosition="1" alphatest="blend" transparent="1"/><!-- list background -->
+			<ePixmap position="70,170" size="615,750" pixmap="{PLUGIN_FOLDER}/images/transblack.png" zPosition="1" alphatest="blend" transparent="1"/><!-- list background -->
 			<widget name="feedlist" position="70,170" size="615,728" scrollbarMode="showOnDemand" enableWrapAround="1" transparent="1" zPosition="5" foregroundColor="#00ffffff" backgroundColorSelected="#00ff0063" backgroundColor="#00000000" />
 			<widget source="vtitle" render="Pixmap" pixmap="{PLUGIN_FOLDER}/images/transblack.png" position="685,170" size="1165,750" zPosition="0" transparent="1" alphatest="blend"><!-- background for all info -->
 				<convert type="ConditionalShowHide"/>
@@ -255,7 +255,7 @@ class PlutoTV(Screen, HelpableScreen):
 			<widget name="poster" position="735,235" size="468,675" zPosition="5" cornerRadius="25" backgroundColor="black" transparent="1" alphatest="blend"/>
 			<widget name="info" position="1223,235" size="619,675" zPosition="5" font="Regular;27" transparent="1" />
 
-			<widget source="updated" render="Pixmap" pixmap="extensions/transblack.png" position="70,950" size="615,50" zPosition="1" transparent="1" alphatest="blend"><!-- updated background -->
+			<widget source="updated" render="Pixmap" pixmap="{PLUGIN_FOLDER}/images/transblack.png" position="70,950" size="615,50" zPosition="1" transparent="1" alphatest="blend"><!-- updated background -->
 				<convert type="ConditionalShowHide"/>
 			</widget>
 			<widget source="updated" render="Label" position="70,950" size="615,50" font="Regular;25" zPosition="5" transparent="1" valign="center" halign="center"/>
