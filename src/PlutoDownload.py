@@ -392,7 +392,7 @@ class PlutoDownloadBase():
 				self.chitem += 1
 
 				ref = "4097:0:1:%s:%s:FF:CCCC0000:0:0:0" % (ch_sid, self.tsid)
-				print("[updateprogress] ref", ref)
+				# print("[updateprogress] ref", ref)
 				threads.deferToThread(self.updateStatus, _("Waiting for Channel: ") + ch_name)  # GUI widget
 
 				chevents = []
