@@ -357,7 +357,7 @@ class PlutoDownloadBase():
 		self.total = len(channels)
 
 		if len(self.categories) == 0:
-			self.noCategories(self)
+			self.noCategories()
 		else:
 			if self.categories[0] in self.channelsList:
 				self.subtotal = len(self.channelsList[self.categories[0]])
