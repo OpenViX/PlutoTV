@@ -162,7 +162,7 @@ plutoRequest = PlutoRequest()
 
 COUNTRY_NAMES = {cc: country[0].split("(")[0].strip() for country in sorted(ISO3166) if (cc := country[1].lower()) in PlutoRequest.X_FORWARDS}  # ISO3166 is sorted in English, sorted will sort by locale.
 
-TSIDS = {cc: ("%X" % (i + 1)) for i, cc in enumerate(COUNTRY_NAMES)}
+TSIDS = {cc: "%X" % i for i, cc in enumerate(COUNTRY_NAMES, 1)}
 
 
 config.plugins.plutotv = ConfigSubsection()
