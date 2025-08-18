@@ -412,7 +412,7 @@ class PlutoDownloadBase():
 
 				self.piconFetcher.addPicon(ref, ch_name, ch_logourl, self.silent)
 			else:
-				eDVBDB.getInstance().addOrUpdateBouquet(BOUQUET_NAME % COUNTRY_NAMES[self.bouquetCC], BOUQUET_FILE % self.bouquetCC, self.bouquet, False)  # place at bottom if not exists
+				eDVBDB.getInstance().addOrUpdateBouquet(BOUQUET_NAME % COUNTRY_NAMES.get(self.bouquetCC, self.bouquetCC), BOUQUET_FILE % self.bouquetCC, self.bouquet, False)  # place at bottom if not exists
 				os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
 				open(TIMER_FILE, "w").write(str(time.time()))
 				self.manager()
