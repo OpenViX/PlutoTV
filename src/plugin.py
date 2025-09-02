@@ -22,7 +22,7 @@
 
 
 # for localized messages
-from . import _, PluginLanguageDomain
+from . import _, PluginLanguageDomain, update_qsd
 from .PlutoDownload import plutoRequest, PlutoDownload, Silent, getselectedcountries, PiconFetcher  # , getClips
 from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, NUMBER_OF_LIVETV_BOUQUETS, PLUGIN_ICON
 
@@ -622,8 +622,18 @@ class PlutoTV(Screen, HelpableScreen):
 		# url   = (data.get("url", "") or data.get("sources", [])[0].get("file", ""))
 		# url = url.replace("siloh.pluto.tv", "dh7tjojp94zlv.cloudfront.net") ## Hack for siloh.pluto.tv not access - siloh.pluto.tv redirect to dh7tjojp94zlv.cloudfront.net
 		if url:
-			uid, did = plutoRequest.getUUID()
-			url = url.replace("deviceModel=", "deviceModel=web").replace("deviceMake=", "deviceMake=chrome") + uid
+			uid, device_id = plutoRequest.getUUID()
+			url = update_qsd(
+				url,
+				{
+					"deviceId": device_id,
+					"sid": device_id,
+					"deviceType": "web",
+					"deviceMake": "Firefox",
+					"deviceModel": "Firefox",
+					"appName": "web",
+				},
+			)
 
 		if url and name:
 			string = "4097:0:0:0:0:0:0:0:0:0:%s:%s" % (quote(url), quote(name))
@@ -697,6 +707,7 @@ class PlutoSetup(Setup):
 		for n in range(1, NUMBER_OF_LIVETV_BOUQUETS + 1):
 			if n == 1 or getattr(config.plugins.plutotv, "live_tv_country" + str(n - 1)).value:
 				configList.append((_("LiveTV bouquet %s") % n, getattr(config.plugins.plutotv, "live_tv_country" + str(n)), _("Country for which LiveTV bouquet %s will be created.") % n))
+		configList.append((_("Live TV Mode"), config.plugins.plutotv.live_tv_mode, _("This controls the URI format in the bouquet file.")))
 		configList.append(("---",))
 		configList.append((_("Picon type"), config.plugins.plutotv.picons, _("Using service name picons means they will continue to work even if the service reference changes. Also, they can be shared between channels of the same name that don't have the same service references.")))
 		configList.append((_("Data location"), config.plugins.plutotv.datalocation, _("Used for storing video cover graphics, etc. A hard drive that goes into standby mode or a slow network mount are not good choices.")))

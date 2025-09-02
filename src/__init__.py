@@ -23,6 +23,8 @@ from Components.Language import language
 from Tools.Directories import resolveFilename, SCOPE_PLUGINS
 import gettext
 
+from urllib.parse import parse_qsl, quote_plus, urlparse
+
 PluginLanguageDomain = "PlutoTV"
 PluginLanguagePath = "Extensions/PlutoTV/locale"
 
@@ -41,3 +43,9 @@ def _(txt):
 
 localeInit()
 language.addCallback(localeInit)
+
+
+def update_qsd(url, qsd):
+	parsed = urlparse(url)
+	qsd_out = dict(parse_qsl(parsed.query, keep_blank_values=True)) | {f"{quote_plus(k)}": f"{quote_plus(v)}" for k, v in qsd.items()}
+	return parsed._replace(query="&".join([f"{k}={v}" for k, v in qsd_out.items()])).geturl()

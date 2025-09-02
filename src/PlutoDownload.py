@@ -19,13 +19,13 @@
 #   You should have received a copy of the GNU General Public License
 #   along with PlutoTV.  If not, see <http://www.gnu.org/licenses/>.
 #
-#   Credit to Billy2011 @ vuplus-support.org for the X_FORWARDS idea
-#   and dictionary from his version of the plugin distributed under
-#   the same license.
+#   Credit to Billy2011 @ vuplus-support.org for the configurable
+#   live_tv_mode option, the X_FORWARDS idea and dictionary from
+#   his version distributed under the same license.
 #
 
 # for localized messages
-from . import _
+from . import _, update_qsd
 from .Variables import TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, BOUQUET_NAME, NUMBER_OF_LIVETV_BOUQUETS, PLUGIN_ICON
 
 from Components.ActionMap import ActionMap
@@ -168,6 +168,7 @@ TSIDS = {cc: "%X" % i for i, cc in enumerate(COUNTRY_NAMES, 1)}
 config.plugins.plutotv = ConfigSubsection()
 config.plugins.plutotv.country = ConfigSelection(default="local", choices=[("local", _("Local"))] + list(COUNTRY_NAMES.items()))
 config.plugins.plutotv.picons = ConfigSelection(default="snp", choices=[("snp", _("service name")), ("srp", _("service reference")), ("", _("None"))])
+config.plugins.plutotv.live_tv_mode = ConfigSelection(default="samsung", choices=[("original", _("Original")), ("roku", _("Roku TV")), ("samsung", _("Samsung TV"))])
 
 
 def getselectedcountries(skip=0):
@@ -308,6 +309,7 @@ class PlutoDownloadBase():
 			yield cc
 
 	def download(self):
+		self.live_tv_mode = config.plugins.plutotv.live_tv_mode.value
 		if PlutoDownloadBase.downloadActive:
 			if not self.silent:
 				self.session.openWithCallback(self.close, MessageBox, _("A silent download is in progress."), MessageBox.TYPE_INFO, timeout=30)
@@ -388,7 +390,7 @@ class PlutoDownloadBase():
 
 				ch_sid, ch_hash, ch_name, ch_logourl, ch_url = self.channelsList[key][self.chitem]
 
-				self.bouquet.append("4097:0:1:%s:%s:FF:CCCC0000:0:0:0:%s:%s" % (ch_sid, self.tsid, quote(ch_url), ch_name))
+				self.bouquet.append("4097:0:1:%s:%s:FF:CCCC0000:0:0:0:%s:%s" % (ch_sid, self.tsid, ch_url.replace(":", "%3A"), ch_name))
 				self.chitem += 1
 
 				ref = "4097:0:1:%s:%s:FF:CCCC0000:0:0:0" % (ch_sid, self.tsid)
@@ -473,8 +475,37 @@ class PlutoDownloadBase():
 		if len(urls) == 0:
 			return False
 
-		if isinstance(urls, list):
-			urls = [url["url"].replace("deviceType=&", "deviceType=web&").replace("deviceMake=&", "deviceMake=Chrome&").replace("deviceModel=&", "deviceModel=Chrome&").replace("appName=&", "appName=web&") for url in urls if url["type"].lower() == "hls"][0]  # todo select quality
+		# todo select quality
+
+		if self.live_tv_mode == "samsung":
+			urls = (
+				"http%3a//stitcher-ipv4.pluto.tv/v1/stitch/embed/hls/channel/{0}/master.m3u8"
+				"?deviceType=samsung-tvplus&deviceMake=samsung&deviceModel=samsung&deviceVersion=unknown&appVersion=unknown"
+				"&deviceLat=0&deviceLon=0&deviceDNT=%7BTARGETOPT%7D&deviceId=%7BPSID%7D&advertisingId=%7BPSID%7D"
+				"&us_privacy=1YNY&samsung_app_domain=%7BAPP_DOMAIN%7D&samsung_app_name=%7BAPP_NAME%7D&profileLimit="
+				"&profileFloor=&embedPartner=samsung-tvplus"
+			).format(_id)
+		elif self.live_tv_mode == "roku":
+			urls = (
+				"http%3a//stitcher-ipv4.pluto.tv/v1/stitch/embed/hls/channel/{0}/master.m3u8"
+				"?deviceId=PSID&deviceModel=web&deviceVersion=1.0&appVersion=1.0&deviceType=rokuChannel"
+				"&deviceMake=rokuChannel&deviceDNT=1"
+			).format(_id)
+		elif self.live_tv_mode == "original":
+			urls = [
+				update_qsd(
+					url["url"],
+					{
+						"deviceType": "web",
+						"deviceMake": "Chrome",
+						"deviceModel": "web",
+						"appName": "web",
+						"deviceId": "bc83a564-4b91-11ef-8a44-83c5e90e038f"
+					},
+				)
+				for url in urls
+				if url["type"].lower() == "hls"
+			][0]
 
 		if group not in list(self.channelsList.keys()):
 			self.channelsList[group] = []
