@@ -25,7 +25,7 @@ import gettext
 
 from urllib.parse import parse_qsl, quote_plus, urlparse
 
-__version__ = "1.0"
+__version__ = "1.1"
 
 PluginLanguageDomain = "PlutoTV"
 PluginLanguagePath = "Extensions/PlutoTV/locale"
