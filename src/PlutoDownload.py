@@ -46,7 +46,6 @@ import requests
 import shutil
 import time
 import uuid
-from urllib.parse import quote
 
 import threading  # for fetching picons
 from twisted.internet import threads  # for updating GUI widgets
