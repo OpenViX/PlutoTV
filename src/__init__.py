@@ -21,7 +21,7 @@
 
 from Components.Language import language
 from Tools.Directories import resolveFilename, SCOPE_PLUGINS
-import gettext
+from gettext import bindtextdomain, dgettext, gettext
 
 from urllib.parse import parse_qsl, quote_plus, urlparse
 
@@ -30,15 +30,14 @@ PluginLanguagePath = "Extensions/PlutoTV/locale"
 
 
 def localeInit():
-	gettext.bindtextdomain(PluginLanguageDomain, resolveFilename(SCOPE_PLUGINS, PluginLanguagePath))
+	bindtextdomain(PluginLanguageDomain, resolveFilename(SCOPE_PLUGINS, PluginLanguagePath))
 
 
 def _(txt):
-	if (translated := gettext.dgettext(PluginLanguageDomain, txt)) != txt:
+	if (translated := dgettext(PluginLanguageDomain, txt)) != txt:
 		return translated
 	else:
-		# print("[" + PluginLanguageDomain + "] fallback to default translation for " + txt)
-		return gettext.gettext(txt)
+		return gettext(txt)
 
 
 localeInit()
