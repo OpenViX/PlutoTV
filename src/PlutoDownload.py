@@ -231,7 +231,7 @@ class PiconFetcher:
 			print("[Fetcher] all fetched")
 
 	def downloadURL(self, url, piconname):
-		filepath = os.path.join(self.pluginPiconDir, piconname.removeprefix(self.piconDir))
+		filepath = os.path.join(self.pluginPiconDir, piconname.removeprefix(self.piconDir).removeprefix(os.sep))  # second removeprefix ensures no leading / is left on the filename as this would be recognised as an absolute path by os.path.join and the join would be skipped
 		self.counter += 1
 		try:
 			response = requests.get(f"{url}{self.resolutionStr}", timeout=2.50, headers={"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"})
