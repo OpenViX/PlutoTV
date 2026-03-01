@@ -617,23 +617,27 @@ class PlutoTV(Screen, HelpableScreen):
 				self["poster"].hide()
 
 	def playVOD(self, name, id, url=None):
-		# data = plutoRequest.getClips(id)[0]
-		# if not data: return
-		# url   = (data.get("url", "") or data.get("sources", [])[0].get("file", ""))
-		# url = url.replace("siloh.pluto.tv", "dh7tjojp94zlv.cloudfront.net") ## Hack for siloh.pluto.tv not access - siloh.pluto.tv redirect to dh7tjojp94zlv.cloudfront.net
 		if url:
-			uid, device_id = plutoRequest.getUUID()
-			url = update_qsd(
-				url,
-				{
-					"deviceId": device_id,
-					"sid": device_id,
-					"deviceType": "web",
-					"deviceMake": "Firefox",
-					"deviceModel": "Firefox",
-					"appName": "web",
-				},
-			)
+			# Use the boot API to get a session-authenticated stitcher URL
+			from urllib.parse import urlparse
+			parsed = urlparse(url)
+			stitchedPath = parsed.path
+			if stitchedPath:
+				url = plutoRequest.getStitchedUrl(stitchedPath)
+			else:
+				# Fallback: update query string params on the original URL
+				uid, device_id = plutoRequest.getUUID()
+				url = update_qsd(
+					url,
+					{
+						"deviceId": device_id,
+						"sid": device_id,
+						"deviceType": "web",
+						"deviceMake": "Firefox",
+						"deviceModel": "web",
+						"appName": "web",
+					},
+				)
 
 		if url and name:
 			string = "4097:0:0:0:0:0:0:0:0:0:%s:%s" % (quote(url), quote(name))
@@ -707,7 +711,6 @@ class PlutoSetup(Setup):
 		for n in range(1, NUMBER_OF_LIVETV_BOUQUETS + 1):
 			if n == 1 or getattr(config.plugins.plutotv, "live_tv_country" + str(n - 1)).value:
 				configList.append((_("LiveTV bouquet %s") % n, getattr(config.plugins.plutotv, "live_tv_country" + str(n)), _("Country for which LiveTV bouquet %s will be created.") % n))
-		configList.append((_("Live TV Mode"), config.plugins.plutotv.live_tv_mode, _("This controls the URI format in the bouquet file.")))
 		configList.append(("---",))
 		configList.append((_("Picon type"), config.plugins.plutotv.picons, _("Using service name picons means they will continue to work even if the service reference changes. Also, they can be shared between channels of the same name that don't have the same service references.")))
 		configList.append((_("Data location"), config.plugins.plutotv.datalocation, _("Used for storing video cover graphics, etc. A hard drive that goes into standby mode or a slow network mount are not good choices.")))

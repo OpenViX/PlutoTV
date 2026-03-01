@@ -25,7 +25,7 @@
 #
 
 # for localized messages
-from . import _, update_qsd
+from . import _
 from .Variables import TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, BOUQUET_NAME, NUMBER_OF_LIVETV_BOUQUETS, PLUGIN_ICON
 
 from Components.ActionMap import ActionMap
@@ -46,6 +46,7 @@ import requests
 import shutil
 import time
 import uuid
+from urllib.parse import urlparse
 
 import threading  # for fetching picons
 from twisted.internet import threads  # for updating GUI widgets
@@ -88,6 +89,7 @@ class PlutoRequest:
 	}
 
 	BASE_API = "https://api.pluto.tv"
+	BOOT_URL = "https://boot.pluto.tv/v4/start"
 	GUIDE_URL = "https://service-channels.clusters.pluto.tv/v1/guide?start=%s&stop=%s&%s"
 	BASE_GUIDE = BASE_API + "/v2/channels?start=%s&stop=%s&%s"
 	BASE_LINEUP = BASE_API + "/v2/channels.json?%s"
@@ -100,6 +102,7 @@ class PlutoRequest:
 
 	def __init__(self):
 		self.requestCache = {}
+		self.bootCache = {}
 
 	def getURL(self, url, param=None, header={"User-agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"}, life=60 * 15, country=None):
 		if param is None:
@@ -126,6 +129,63 @@ class PlutoRequest:
 	def getUUIDstr(self):
 		return "sid=%s&deviceId=%s" % self.getUUID()
 
+	def boot(self, country=None):
+		"""Call the boot API to get a session token and stitcher server URL."""
+		cc = country or config.plugins.plutotv.country.value
+		now = time.time()
+		if cc in self.bootCache and self.bootCache[cc]["expires"] > now:
+			return self.bootCache[cc]
+		clientID = str(uuid.uuid4())
+		ip = self.X_FORWARDS.get(cc)
+		headers = {
+			"Accept": "application/json",
+			"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0",
+		}
+		if ip:
+			headers["X-Forwarded-For"] = ip
+		params = {
+			"appName": "web",
+			"appVersion": "9.9.0",
+			"deviceVersion": "131.0.0",
+			"deviceModel": "web",
+			"deviceMake": "firefox",
+			"deviceType": "web",
+			"clientID": clientID,
+			"clientModelNumber": "1.0.0",
+		}
+		try:
+			req = requests.get(self.BOOT_URL, params=params, headers=headers, timeout=5)
+			req.raise_for_status()
+			data = req.json()
+			req.close()
+			stitcherUrl = data.get("servers", {}).get("stitcher", "")
+			stitcherParams = data.get("stitcherParams", "")
+			sessionToken = data.get("sessionToken", "")
+			self.bootCache[cc] = {
+				"stitcherUrl": stitcherUrl,
+				"stitcherParams": stitcherParams,
+				"sessionToken": sessionToken,
+				"clientID": clientID,
+				"expires": now + data.get("refreshInSec", 14400),
+			}
+			return self.bootCache[cc]
+		except Exception as e:
+			print("[PlutoTV] boot API error:", e)
+			return {}
+
+	def getStitchedUrl(self, channelPath, country=None):
+		"""Build a full stitched stream URL using the boot API session."""
+		bootData = self.boot(country)
+		if not bootData:
+			return ""
+		stitcherUrl = bootData.get("stitcherUrl", "")
+		stitcherParams = bootData.get("stitcherParams", "")
+		sessionToken = bootData.get("sessionToken", "")
+		# The stitcher v2 endpoint is required for proper stream delivery
+		if not channelPath.startswith("/v2"):
+			channelPath = "/v2" + channelPath
+		return "%s%s?%s&jwt=%s&masterJWTPassthrough=true&includeExtendedEvents=true" % (stitcherUrl, channelPath, stitcherParams, sessionToken)
+
 	def buildHeader(self, country=None):
 		ip = self.X_FORWARDS.get(country or config.plugins.plutotv.country.value)
 		return {
@@ -134,7 +194,7 @@ class PlutoRequest:
 			"Connection": "keep-alive",
 			"Referer": "http://pluto.tv/",
 			"Origin": "http://pluto.tv",
-			"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0",
+			"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0",
 		} | ({"X-Forwarded-For": ip} if ip else {})
 
 	# def getClips(self, epid, country=None):
@@ -167,7 +227,6 @@ TSIDS = {cc: "%X" % i for i, cc in enumerate(COUNTRY_NAMES, 1)}
 config.plugins.plutotv = ConfigSubsection()
 config.plugins.plutotv.country = ConfigSelection(default="local", choices=[("local", _("Local"))] + list(COUNTRY_NAMES.items()))
 config.plugins.plutotv.picons = ConfigSelection(default="snp", choices=[("snp", _("service name")), ("srp", _("service reference")), ("", _("None"))])
-config.plugins.plutotv.live_tv_mode = ConfigSelection(default="samsung", choices=[("original", _("Original")), ("roku", _("Roku TV")), ("samsung", _("Samsung TV"))])
 
 
 def getselectedcountries(skip=0):
@@ -308,7 +367,6 @@ class PlutoDownloadBase():
 			yield cc
 
 	def download(self):
-		self.live_tv_mode = config.plugins.plutotv.live_tv_mode.value
 		if PlutoDownloadBase.downloadActive:
 			if not self.silent:
 				self.session.openWithCallback(self.close, MessageBox, _("A silent download is in progress."), MessageBox.TYPE_INFO, timeout=30)
@@ -470,41 +528,24 @@ class PlutoDownloadBase():
 		group = channel.get("category", "")
 		_id = channel["_id"]
 
-		urls = channel.get("stitched", {}).get("urls", [])
-		if len(urls) == 0:
+		# Use the new boot API v4 to get a session-authenticated stitcher URL
+		stitchedPath = channel.get("stitched", {}).get("path", "")
+		if not stitchedPath:
+			# Fallback: try to get path from urls list
+			urls = channel.get("stitched", {}).get("urls", [])
+			if urls:
+				for url in urls:
+					if url.get("type", "").lower() == "hls":
+						stitchedPath = urlparse(url["url"]).path
+						break
+		if not stitchedPath:
+			stitchedPath = "/stitch/hls/channel/%s/master.m3u8" % _id
+
+		streamUrl = plutoRequest.getStitchedUrl(stitchedPath, self.bouquetCC)
+		if not streamUrl:
 			return False
-
-		# todo select quality
-
-		if self.live_tv_mode == "samsung":
-			urls = (
-				"http%3a//stitcher-ipv4.pluto.tv/v1/stitch/embed/hls/channel/{0}/master.m3u8"
-				"?deviceType=samsung-tvplus&deviceMake=samsung&deviceModel=samsung&deviceVersion=unknown&appVersion=unknown"
-				"&deviceLat=0&deviceLon=0&deviceDNT=%7BTARGETOPT%7D&deviceId=%7BPSID%7D&advertisingId=%7BPSID%7D"
-				"&us_privacy=1YNY&samsung_app_domain=%7BAPP_DOMAIN%7D&samsung_app_name=%7BAPP_NAME%7D&profileLimit="
-				"&profileFloor=&embedPartner=samsung-tvplus"
-			).format(_id)
-		elif self.live_tv_mode == "roku":
-			urls = (
-				"http%3a//stitcher-ipv4.pluto.tv/v1/stitch/embed/hls/channel/{0}/master.m3u8"
-				"?deviceId=PSID&deviceModel=web&deviceVersion=1.0&appVersion=1.0&deviceType=rokuChannel"
-				"&deviceMake=rokuChannel&deviceDNT=1"
-			).format(_id)
-		elif self.live_tv_mode == "original":
-			urls = [
-				update_qsd(
-					url["url"],
-					{
-						"deviceType": "web",
-						"deviceMake": "Chrome",
-						"deviceModel": "web",
-						"appName": "web",
-						"deviceId": "bc83a564-4b91-11ef-8a44-83c5e90e038f"
-					},
-				)
-				for url in urls
-				if url["type"].lower() == "hls"
-			][0]
+		# URL-encode colons for enigma2 bouquet format
+		urls = streamUrl.replace(":", "%3a").replace("https%3a", "http%3a")
 
 		if group not in list(self.channelsList.keys()):
 			self.channelsList[group] = []
