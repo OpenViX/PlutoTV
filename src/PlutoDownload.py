@@ -25,7 +25,7 @@
 #
 
 # for localized messages
-from . import _, update_qsd
+from . import _
 from .Variables import TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, BOUQUET_NAME, NUMBER_OF_LIVETV_BOUQUETS, PLUGIN_ICON
 
 from Components.ActionMap import ActionMap
@@ -88,18 +88,103 @@ class PlutoRequest:
 	}
 
 	BASE_API = "https://api.pluto.tv"
-	GUIDE_URL = "https://service-channels.clusters.pluto.tv/v1/guide?start=%s&stop=%s&%s"
-	BASE_GUIDE = BASE_API + "/v2/channels?start=%s&stop=%s&%s"
-	BASE_LINEUP = BASE_API + "/v2/channels.json?%s"
+	BOOT_URL = "https://boot.pluto.tv/v4/start"
+	CHANNELS_URL = "https://service-channels.clusters.pluto.tv/v2/guide/channels"
+	CATEGORIES_URL = "https://service-channels.clusters.pluto.tv/v2/guide/categories"
+	TIMELINES_URL = "https://service-channels.clusters.pluto.tv/v2/guide/timelines"
+	STITCHER_BASE = "https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv"
 	BASE_VOD = BASE_API + "/v3/vod/categories?includeItems=true&deviceType=web&%s"
 	SEASON_VOD = BASE_API + "/v3/vod/series/%s/seasons?includeItems=true&deviceType=web&%s"
-	# BASE_CLIPS = BASE_API + "/v2/episodes/%s/clips.json"
 
 	sid1_hex = str(uuid.uuid1().hex)
 	deviceId1_hex = str(uuid.uuid4().hex)
 
 	def __init__(self):
+		self.session = requests.Session()
+		self.client_id = str(uuid.uuid4())
+		self.bootCache = {}
 		self.requestCache = {}
+
+	def boot(self, country=None):
+		"""Acquire token via boot.pluto.tv/v4/start (same as pluto-for-channels)."""
+		country = country or config.plugins.plutotv.country.value
+		now = time.time()
+
+		if country in self.bootCache:
+			if (now - self.bootCache[country]["time"]) < 4 * 3600:
+				return self.bootCache[country]["response"]
+
+		headers = {
+			'authority': 'boot.pluto.tv',
+			'accept': '*/*',
+			'accept-language': 'en-US,en;q=0.9',
+			'origin': 'https://pluto.tv',
+			'referer': 'https://pluto.tv/',
+			'sec-ch-ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+			'sec-ch-ua-mobile': '?0',
+			'sec-ch-ua-platform': '"Linux"',
+			'sec-fetch-dest': 'empty',
+			'sec-fetch-mode': 'cors',
+			'sec-fetch-site': 'same-site',
+			'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+		}
+
+		params = {
+			'appName': 'web',
+			'appVersion': '8.0.0-111b2b9dc00bd0bea9030b30662159ed9e7c8bc6',
+			'deviceVersion': '122.0.0',
+			'deviceModel': 'web',
+			'deviceMake': 'chrome',
+			'deviceType': 'web',
+			'clientID': self.client_id,
+			'clientModelNumber': '1.0.0',
+			'serverSideAds': 'false',
+			'drmCapabilities': 'widevine:L3',
+			'blockingMode': '',
+		}
+
+		ip = self.X_FORWARDS.get(country)
+		if ip:
+			headers['X-Forwarded-For'] = ip
+
+		try:
+			response = self.session.get(self.BOOT_URL, headers=headers, params=params, timeout=10)
+			response.raise_for_status()
+			resp = response.json()
+			self.bootCache[country] = {"response": resp, "time": now}
+			print(f"[PlutoTV] New token for {country}")
+			return resp
+		except Exception as e:
+			print(f"[PlutoTV] boot error: {e}")
+			return {}
+
+	def _authHeaders(self, country=None):
+		"""Build authorization headers for service-channels API."""
+		country = country or config.plugins.plutotv.country.value
+		token = self.boot(country).get('sessionToken', '')
+		headers = {
+			'authority': 'service-channels.clusters.pluto.tv',
+			'accept': '*/*',
+			'accept-language': 'en-US,en;q=0.9',
+			'authorization': f'Bearer {token}',
+			'origin': 'https://pluto.tv',
+			'referer': 'https://pluto.tv/',
+		}
+		ip = self.X_FORWARDS.get(country)
+		if ip:
+			headers['X-Forwarded-For'] = ip
+		return headers
+
+	def buildStreamURL(self, channel_id, country=None):
+		"""Build authenticated stitcher stream URL (same as pluto-for-channels)."""
+		country = country or config.plugins.plutotv.country.value
+		boot_resp = self.boot(country)
+		token = boot_resp.get('sessionToken', '')
+		stitcher_params = boot_resp.get('stitcherParams', '')
+		return (
+			f"{self.STITCHER_BASE}/v2/stitch/hls/channel/{channel_id}/master.m3u8"
+			f"?{stitcher_params}&jwt={token}&masterJWTPassthrough=true&includeExtendedEvents=true"
+		)
 
 	def getURL(self, url, param=None, header={"User-agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"}, life=60 * 15, country=None):
 		if param is None:
@@ -137,9 +222,6 @@ class PlutoRequest:
 			"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0",
 		} | ({"X-Forwarded-For": ip} if ip else {})
 
-	# def getClips(self, epid, country=None):
-	# 	return self.getURL(self.BASE_CLIPS % (epid), header=self.buildHeader(), life=60 * 60, country=country))
-
 	def getVOD(self, epid, country=None):
 		return self.getURL(self.SEASON_VOD % (epid, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60, country=country)
 
@@ -147,13 +229,84 @@ class PlutoRequest:
 		return self.getURL(self.BASE_VOD % self.getUUIDstr(), header=self.buildHeader(country), life=60 * 60, country=country)
 
 	def getChannels(self, country=None):
-		return self.getURL(self.BASE_LINEUP % self.getUUIDstr(), header=self.buildHeader(country), life=60 * 60, country=country)
+		"""Fetch channels via v2/guide/channels + categories, returned in legacy format."""
+		country = country or config.plugins.plutotv.country.value
+		headers = self._authHeaders(country)
+		params = {'channelIds': '', 'offset': '0', 'limit': '1000', 'sort': 'number:asc'}
 
-	def getFullGuide(self, start, stop, country=None):
-		return self.getURL(self.GUIDE_URL % (start, stop, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60, country=country)
+		try:
+			response = self.session.get(self.CHANNELS_URL, params=params, headers=headers, timeout=10)
+			response.raise_for_status()
+			channel_list = response.json().get("data", [])
+		except Exception:
+			return []
+
+		try:
+			response = self.session.get(self.CATEGORIES_URL, params=params, headers=headers, timeout=10)
+			response.raise_for_status()
+			cat_data = response.json().get("data", [])
+		except Exception:
+			cat_data = []
+
+		categories = {}
+		for elem in cat_data:
+			cat_name = elem.get('name', '')
+			for ch_id in elem.get('channelIDs', []):
+				categories[ch_id] = cat_name
+
+		result = []
+		for ch in channel_list:
+			ch_id = ch.get('id', '')
+			logo_url = next(
+				(img["url"] for img in ch.get("images", []) if img.get("type") == "colorLogoPNG"),
+				None
+			)
+			result.append({
+				'_id': ch_id,
+				'name': ch.get('name', ''),
+				'slug': ch.get('slug', ''),
+				'number': ch.get('number', 0),
+				'category': categories.get(ch_id, ''),
+				'colorLogoPNG': {'path': logo_url},
+			})
+
+		return result
 
 	def getBaseGuide(self, start, stop, country=None):
-		return self.getURL(self.BASE_GUIDE % (start, stop, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60, country=country)
+		"""Fetch guide data via v2/guide/timelines, returned in legacy format."""
+		country = country or config.plugins.plutotv.country.value
+		headers = self._authHeaders(country)
+
+		channels = self.getChannels(country)
+		channel_ids = [ch['_id'] for ch in channels]
+		channel_lookup = {ch['_id']: ch for ch in channels}
+
+		all_entries = []
+		group_size = 100
+		for i in range(0, len(channel_ids), group_size):
+			group = channel_ids[i:i + group_size]
+			params = {
+				'start': start,
+				'channelIds': ','.join(group),
+				'duration': '1440',
+			}
+			try:
+				response = self.session.get(self.TIMELINES_URL, params=params, headers=headers, timeout=10)
+				response.raise_for_status()
+				data = response.json().get("data", [])
+				for entry in data:
+					ch_id = entry.get('channelId', '')
+					ch_data = channel_lookup.get(ch_id, {})
+					all_entries.append({
+						'_id': ch_id,
+						'number': ch_data.get('number', 0),
+						'name': ch_data.get('name', ''),
+						'timelines': entry.get('timelines', []),
+					})
+			except Exception:
+				pass
+
+		return all_entries
 
 
 plutoRequest = PlutoRequest()
@@ -308,7 +461,6 @@ class PlutoDownloadBase():
 			yield cc
 
 	def download(self):
-		self.live_tv_mode = config.plugins.plutotv.live_tv_mode.value
 		if PlutoDownloadBase.downloadActive:
 			if not self.silent:
 				self.session.openWithCallback(self.close, MessageBox, _("A silent download is in progress."), MessageBox.TYPE_INFO, timeout=30)
@@ -463,48 +615,12 @@ class PlutoDownloadBase():
 
 	def buildM3U(self, channel):
 		# (number, _id, name, logo, url)
-		# Select type of logo we want
-		# logo = (channel.get("logo", {}).get("path", None) or None)
-		# logo = (channel.get("solidLogoPNG", {}).get("path", None) or None)  # blancos
 		logo = (channel.get("colorLogoPNG", {}).get("path", None) or None)
 		group = channel.get("category", "")
 		_id = channel["_id"]
 
-		urls = channel.get("stitched", {}).get("urls", [])
-		if len(urls) == 0:
-			return False
-
-		# todo select quality
-
-		if self.live_tv_mode == "samsung":
-			urls = (
-				"http%3a//stitcher-ipv4.pluto.tv/v1/stitch/embed/hls/channel/{0}/master.m3u8"
-				"?deviceType=samsung-tvplus&deviceMake=samsung&deviceModel=samsung&deviceVersion=unknown&appVersion=unknown"
-				"&deviceLat=0&deviceLon=0&deviceDNT=%7BTARGETOPT%7D&deviceId=%7BPSID%7D&advertisingId=%7BPSID%7D"
-				"&us_privacy=1YNY&samsung_app_domain=%7BAPP_DOMAIN%7D&samsung_app_name=%7BAPP_NAME%7D&profileLimit="
-				"&profileFloor=&embedPartner=samsung-tvplus"
-			).format(_id)
-		elif self.live_tv_mode == "roku":
-			urls = (
-				"http%3a//stitcher-ipv4.pluto.tv/v1/stitch/embed/hls/channel/{0}/master.m3u8"
-				"?deviceId=PSID&deviceModel=web&deviceVersion=1.0&appVersion=1.0&deviceType=rokuChannel"
-				"&deviceMake=rokuChannel&deviceDNT=1"
-			).format(_id)
-		elif self.live_tv_mode == "original":
-			urls = [
-				update_qsd(
-					url["url"],
-					{
-						"deviceType": "web",
-						"deviceMake": "Chrome",
-						"deviceModel": "web",
-						"appName": "web",
-						"deviceId": "bc83a564-4b91-11ef-8a44-83c5e90e038f"
-					},
-				)
-				for url in urls
-				if url["type"].lower() == "hls"
-			][0]
+		# Build authenticated stitcher URL (same as pluto-for-channels)
+		urls = plutoRequest.buildStreamURL(_id, self.bouquetCC)
 
 		if group not in list(self.channelsList.keys()):
 			self.channelsList[group] = []
@@ -536,14 +652,10 @@ class PlutoDownloadBase():
 		return id
 
 	@staticmethod
-	def getGuidedata(cc, full=False):
+	def getGuidedata(cc):
 		start = (datetime.datetime.fromtimestamp(PlutoDownloadBase.getLocalTime()).strftime("%Y-%m-%dT%H:00:00Z"))
 		stop = (datetime.datetime.fromtimestamp(PlutoDownloadBase.getLocalTime()) + datetime.timedelta(hours=24)).strftime("%Y-%m-%dT%H:00:00Z")
-
-		if full:  # this is never used
-			return plutoRequest.getFullGuide(start, stop, cc)
-		else:
-			return sorted(plutoRequest.getBaseGuide(start, stop, cc), key=lambda x: x["number"])
+		return sorted(plutoRequest.getBaseGuide(start, stop, cc), key=lambda x: x["number"])
 
 	@staticmethod
 	def getLocalTime():
