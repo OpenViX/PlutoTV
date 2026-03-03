@@ -93,11 +93,8 @@ class PlutoRequest:
 	CATEGORIES_URL = "https://service-channels.clusters.pluto.tv/v2/guide/categories"
 	TIMELINES_URL = "https://service-channels.clusters.pluto.tv/v2/guide/timelines"
 	STITCHER_BASE = "https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv"
-	BASE_VOD = BASE_API + "/v3/vod/categories?includeItems=true&deviceType=web&%s"
-	SEASON_VOD = BASE_API + "/v3/vod/series/%s/seasons?includeItems=true&deviceType=web&%s"
-
-	sid1_hex = str(uuid.uuid1().hex)
-	deviceId1_hex = str(uuid.uuid4().hex)
+	BASE_VOD = BASE_API + "/v3/vod/categories?includeItems=true&deviceType=web"
+	SEASON_VOD = BASE_API + "/v3/vod/series/%s/seasons?includeItems=true&deviceType=web"
 
 	def __init__(self):
 		self.session = requests.Session()
@@ -192,6 +189,22 @@ class PlutoRequest:
 			f"?jwt={token}&masterJWTPassthrough=true"
 		)
 
+	def _apiHeaders(self, country=None):
+		"""Build authorization headers for api.pluto.tv endpoints (VOD)."""
+		country = country or config.plugins.plutotv.country.value
+		token = self.boot(country).get('sessionToken', '')
+		headers = {
+			'accept': 'application/json, text/javascript, */*; q=0.01',
+			'authorization': f'Bearer {token}',
+			'origin': 'https://pluto.tv',
+			'referer': 'https://pluto.tv/',
+			'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+		}
+		ip = self.X_FORWARDS.get(country)
+		if ip:
+			headers['X-Forwarded-For'] = ip
+		return headers
+
 	def getURL(self, url, param=None, header={"User-agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"}, life=60 * 15, country=None):
 		if param is None:
 			param = {}
@@ -202,7 +215,7 @@ class PlutoRequest:
 		if url in self.requestCache[country] and self.requestCache[country][url][1] > (now - life):
 			return self.requestCache[country][url][0]
 		try:
-			req = requests.get(url, param, headers=header, timeout=2)
+			req = requests.get(url, param, headers=header, timeout=10)
 			req.raise_for_status()
 			response = req.json()
 			req.close()
@@ -211,28 +224,40 @@ class PlutoRequest:
 		except Exception:
 			return {}
 
-	def getUUID(self):
-		return self.sid1_hex, self.deviceId1_hex
+	def buildVodStreamURL(self, vod_url, country=None):
+		"""Rewrite a VOD stitched URL to use the new stitcher host + JWT auth.
 
-	def getUUIDstr(self):
-		return "sid=%s&deviceId=%s" % self.getUUID()
+		The VOD API returns URLs on the old stitcher (service-stitcher-ipv4.clusters.pluto.tv)
+		with stale/empty query params. We need to:
+		1. Replace the host with the new CDN stitcher
+		2. Ensure the path has the /v2 prefix
+		3. Strip all old query params, use only jwt + masterJWTPassthrough
+		"""
+		country = country or config.plugins.plutotv.country.value
+		boot_resp = self.boot(country)
+		token = boot_resp.get('sessionToken', '')
 
-	def buildHeader(self, country=None):
-		ip = self.X_FORWARDS.get(country or config.plugins.plutotv.country.value)
-		return {
-			"Accept": "application/json, text/javascript, */*; q=0.01",
-			"Host": "api.pluto.tv",
-			"Connection": "keep-alive",
-			"Referer": "http://pluto.tv/",
-			"Origin": "http://pluto.tv",
-			"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0",
-		} | ({"X-Forwarded-For": ip} if ip else {})
+		# Extract the path from the old URL (strip host and query string)
+		# e.g. https://service-stitcher-ipv4.clusters.pluto.tv/stitch/hls/episode/XXX/master.m3u8?...
+		path = vod_url.split('?')[0]  # remove query string
+		path = re.sub(r'^https?://[^/]+', '', path)  # remove scheme+host, keep /path
+
+		# Ensure /v2 prefix (old URLs use /stitch/..., new stitcher needs /v2/stitch/...)
+		if path.startswith('/stitch/'):
+			path = '/v2' + path
+
+		return (
+			f"{self.STITCHER_BASE}{path}"
+			f"?jwt={token}&masterJWTPassthrough=true"
+		)
 
 	def getVOD(self, epid, country=None):
-		return self.getURL(self.SEASON_VOD % (epid, self.getUUIDstr()), header=self.buildHeader(country), life=60 * 60, country=country)
+		country = country or config.plugins.plutotv.country.value
+		return self.getURL(self.SEASON_VOD % epid, header=self._apiHeaders(country), life=60 * 60, country=country)
 
 	def getOndemand(self, country=None):
-		return self.getURL(self.BASE_VOD % self.getUUIDstr(), header=self.buildHeader(country), life=60 * 60, country=country)
+		country = country or config.plugins.plutotv.country.value
+		return self.getURL(self.BASE_VOD, header=self._apiHeaders(country), life=60 * 60, country=country)
 
 	def getChannels(self, country=None):
 		"""Fetch channels via v2/guide/channels + categories, returned in legacy format."""
