@@ -22,7 +22,7 @@
 
 
 # for localized messages
-from . import _, PluginLanguageDomain, update_qsd
+from . import _, PluginLanguageDomain
 from .PlutoDownload import plutoRequest, PlutoDownload, Silent, getselectedcountries, PiconFetcher  # , getClips
 from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, NUMBER_OF_LIVETV_BOUQUETS, PLUGIN_ICON
 
@@ -569,14 +569,12 @@ class PlutoTV(Screen, HelpableScreen):
 			film = self.films[index]
 			sid = film[0]
 			name = film[1].decode("utf-8")
-			sessionid, deviceid = plutoRequest.getUUID()
 			url = film[9]
 			self.playVOD(name, sid, url)
 		if __type == "episode":
 			film = self.chapters[_id][index]
 			sid = film[0]
 			name = film[1]
-			sessionid, deviceid = plutoRequest.getUUID()
 			url = film[9]
 			self.playVOD(name, sid, url)
 
@@ -617,23 +615,8 @@ class PlutoTV(Screen, HelpableScreen):
 				self["poster"].hide()
 
 	def playVOD(self, name, id, url=None):
-		# data = plutoRequest.getClips(id)[0]
-		# if not data: return
-		# url   = (data.get("url", "") or data.get("sources", [])[0].get("file", ""))
-		# url = url.replace("siloh.pluto.tv", "dh7tjojp94zlv.cloudfront.net") ## Hack for siloh.pluto.tv not access - siloh.pluto.tv redirect to dh7tjojp94zlv.cloudfront.net
 		if url:
-			uid, device_id = plutoRequest.getUUID()
-			url = update_qsd(
-				url,
-				{
-					"deviceId": device_id,
-					"sid": device_id,
-					"deviceType": "web",
-					"deviceMake": "Firefox",
-					"deviceModel": "Firefox",
-					"appName": "web",
-				},
-			)
+			url = plutoRequest.buildVodStreamURL(url)
 
 		if url and name:
 			string = "4097:0:0:0:0:0:0:0:0:0:%s:%s" % (quote(url), quote(name))
