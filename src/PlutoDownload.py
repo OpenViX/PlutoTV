@@ -545,7 +545,7 @@ class PlutoDownloadBase():
 		if not streamUrl:
 			return False
 		# URL-encode colons for enigma2 bouquet format
-		urls = streamUrl.replace(":", "%3a").replace("https%3a", "http%3a")
+		urls = streamUrl.replace(":", "%3a")
 
 		if group not in list(self.channelsList.keys()):
 			self.channelsList[group] = []
