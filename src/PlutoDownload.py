@@ -176,14 +176,20 @@ class PlutoRequest:
 		return headers
 
 	def buildStreamURL(self, channel_id, country=None):
-		"""Build authenticated stitcher stream URL (same as pluto-for-channels)."""
+		"""Build authenticated stitcher stream URL (same as pluto-for-channels).
+
+		We intentionally omit stitcherParams to keep the URL short (~1600 chars
+		instead of ~2500). The JWT is self-contained and masterJWTPassthrough=true
+		tells the stitcher to forward it. The stitcherParams are redundant device/
+		ad-targeting info already encoded in the JWT. Shorter URLs reduce the risk
+		of eServiceMP3 / GStreamer crashes during rapid channel zapping.
+		"""
 		country = country or config.plugins.plutotv.country.value
 		boot_resp = self.boot(country)
 		token = boot_resp.get('sessionToken', '')
-		stitcher_params = boot_resp.get('stitcherParams', '')
 		return (
 			f"{self.STITCHER_BASE}/v2/stitch/hls/channel/{channel_id}/master.m3u8"
-			f"?{stitcher_params}&jwt={token}&masterJWTPassthrough=true&includeExtendedEvents=true"
+			f"?jwt={token}&masterJWTPassthrough=true"
 		)
 
 	def getURL(self, url, param=None, header={"User-agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"}, life=60 * 15, country=None):
