@@ -809,7 +809,7 @@ class Pluto_Player(MoviePlayer):
 		pass
 
 
-def autostart(reason, session):
+def sessionstart(reason, session, **kwargs):
 	Silent.init(session)
 
 
@@ -825,5 +825,5 @@ def Plugins(**kwargs):
 	return [
 		PluginDescriptor(name=_("PlutoTV"), where=PluginDescriptor.WHERE_PLUGINMENU, icon=PLUGIN_ICON, description=_("View video on demand and download a bouquet of live tv channels"), fnc=system, needsRestart=True),
 		PluginDescriptor(name=_("Download PlutoTV bouquet, picons and EPG"), where=PluginDescriptor.WHERE_EXTENSIONSMENU, fnc=Download_PlutoTV, needsRestart=True),
-		PluginDescriptor(name=_("Silently download PlutoTV"), where=PluginDescriptor.WHERE_SESSIONSTART, fnc=autostart),
+		PluginDescriptor(name=_("Silently download PlutoTV"), where=PluginDescriptor.WHERE_SESSIONSTART, fnc=sessionstart),
 	]
