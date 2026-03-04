@@ -92,15 +92,19 @@ class PlutoRequest:
 	CHANNELS_URL = "https://service-channels.clusters.pluto.tv/v2/guide/channels"
 	CATEGORIES_URL = "https://service-channels.clusters.pluto.tv/v2/guide/categories"
 	TIMELINES_URL = "https://service-channels.clusters.pluto.tv/v2/guide/timelines"
-	STITCHER_BASE = "https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv"
+	STITCHER_FALLBACK = "https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv"
 	BASE_VOD = BASE_API + "/v3/vod/categories?includeItems=true&deviceType=web"
 	SEASON_VOD = BASE_API + "/v3/vod/series/%s/seasons?includeItems=true&deviceType=web"
+	# Legacy API endpoints (fallback for countries not on the new service-channels API)
+	LEGACY_CHANNELS_URL = BASE_API + "/v2/channels.json"
+	LEGACY_GUIDE_URL = BASE_API + "/v2/channels"
 
 	def __init__(self):
 		self.session = requests.Session()
-		self.client_id = str(uuid.uuid4())
 		self.bootCache = {}
 		self.requestCache = {}
+		self._sid = str(uuid.uuid1().hex)
+		self._deviceId = str(uuid.uuid4().hex)
 
 	def boot(self, country=None):
 		"""Acquire token via boot.pluto.tv/v4/start (same as pluto-for-channels)."""
@@ -133,7 +137,7 @@ class PlutoRequest:
 			'deviceModel': 'web',
 			'deviceMake': 'chrome',
 			'deviceType': 'web',
-			'clientID': self.client_id,
+			'clientID': str(uuid.uuid4()),
 			'clientModelNumber': '1.0.0',
 			'serverSideAds': 'false',
 			'drmCapabilities': 'widevine:L3',
@@ -145,11 +149,16 @@ class PlutoRequest:
 			headers['X-Forwarded-For'] = ip
 
 		try:
-			response = self.session.get(self.BOOT_URL, headers=headers, params=params, timeout=10)
+			response = requests.get(self.BOOT_URL, headers=headers, params=params, timeout=10)
 			response.raise_for_status()
 			resp = response.json()
-			self.bootCache[country] = {"response": resp, "time": now}
-			print(f"[PlutoTV] New token for {country}")
+			self.bootCache[country] = {
+				"response": resp,
+				"time": now,
+				"stitcherUrl": resp.get("servers", {}).get("stitcher", self.STITCHER_FALLBACK),
+				"stitcherParams": resp.get("stitcherParams", ""),
+			}
+			print(f"[PlutoTV] New token for {country}, stitcher={self.bootCache[country]['stitcherUrl']}")
 			return resp
 		except Exception as e:
 			print(f"[PlutoTV] boot error: {e}")
@@ -173,21 +182,24 @@ class PlutoRequest:
 		return headers
 
 	def buildStreamURL(self, channel_id, country=None):
-		"""Build authenticated stitcher stream URL (same as pluto-for-channels).
+		"""Build authenticated stitcher stream URL.
 
-		We intentionally omit stitcherParams to keep the URL short (~1600 chars
-		instead of ~2500). The JWT is self-contained and masterJWTPassthrough=true
-		tells the stitcher to forward it. The stitcherParams are redundant device/
-		ad-targeting info already encoded in the JWT. Shorter URLs reduce the risk
-		of eServiceMP3 / GStreamer crashes during rapid channel zapping.
+		Uses the stitcher URL and stitcherParams from the boot API response
+		so each country is routed to the correct CDN endpoint.
 		"""
 		country = country or config.plugins.plutotv.country.value
-		boot_resp = self.boot(country)
-		token = boot_resp.get('sessionToken', '')
-		return (
-			f"{self.STITCHER_BASE}/v2/stitch/hls/channel/{channel_id}/master.m3u8"
+		self.boot(country)
+		cache = self.bootCache.get(country, {})
+		token = cache.get('response', {}).get('sessionToken', '')
+		stitcherUrl = cache.get('stitcherUrl', self.STITCHER_FALLBACK)
+		stitcherParams = cache.get('stitcherParams', '')
+		url = (
+			f"{stitcherUrl}/v2/stitch/hls/channel/{channel_id}/master.m3u8"
 			f"?jwt={token}&masterJWTPassthrough=true"
 		)
+		if stitcherParams:
+			url += f"&{stitcherParams}"
+		return url
 
 	def _apiHeaders(self, country=None):
 		"""Build authorization headers for api.pluto.tv endpoints (VOD)."""
@@ -201,6 +213,21 @@ class PlutoRequest:
 			'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
 		}
 		ip = self.X_FORWARDS.get(country)
+		if ip:
+			headers['X-Forwarded-For'] = ip
+		return headers
+
+	def _legacyHeaders(self, country=None):
+		"""Build headers for legacy api.pluto.tv endpoints (no Bearer token needed)."""
+		ip = self.X_FORWARDS.get(country or config.plugins.plutotv.country.value)
+		headers = {
+			'accept': 'application/json, text/javascript, */*; q=0.01',
+			'host': 'api.pluto.tv',
+			'connection': 'keep-alive',
+			'referer': 'http://pluto.tv/',
+			'origin': 'http://pluto.tv',
+			'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+		}
 		if ip:
 			headers['X-Forwarded-For'] = ip
 		return headers
@@ -225,17 +252,20 @@ class PlutoRequest:
 			return {}
 
 	def buildVodStreamURL(self, vod_url, country=None):
-		"""Rewrite a VOD stitched URL to use the new stitcher host + JWT auth.
+		"""Rewrite a VOD stitched URL to use the correct stitcher host + JWT auth.
 
 		The VOD API returns URLs on the old stitcher (service-stitcher-ipv4.clusters.pluto.tv)
 		with stale/empty query params. We need to:
-		1. Replace the host with the new CDN stitcher
+		1. Replace the host with the stitcher from boot response
 		2. Ensure the path has the /v2 prefix
-		3. Strip all old query params, use only jwt + masterJWTPassthrough
+		3. Strip all old query params, use jwt + masterJWTPassthrough + stitcherParams
 		"""
 		country = country or config.plugins.plutotv.country.value
-		boot_resp = self.boot(country)
-		token = boot_resp.get('sessionToken', '')
+		self.boot(country)
+		cache = self.bootCache.get(country, {})
+		token = cache.get('response', {}).get('sessionToken', '')
+		stitcherUrl = cache.get('stitcherUrl', self.STITCHER_FALLBACK)
+		stitcherParams = cache.get('stitcherParams', '')
 
 		# Extract the path from the old URL (strip host and query string)
 		# e.g. https://service-stitcher-ipv4.clusters.pluto.tv/stitch/hls/episode/XXX/master.m3u8?...
@@ -246,10 +276,13 @@ class PlutoRequest:
 		if path.startswith('/stitch/'):
 			path = '/v2' + path
 
-		return (
-			f"{self.STITCHER_BASE}{path}"
+		url = (
+			f"{stitcherUrl}{path}"
 			f"?jwt={token}&masterJWTPassthrough=true"
 		)
+		if stitcherParams:
+			url += f"&{stitcherParams}"
+		return url
 
 	def getVOD(self, epid, country=None):
 		country = country or config.plugins.plutotv.country.value
@@ -260,7 +293,11 @@ class PlutoRequest:
 		return self.getURL(self.BASE_VOD, header=self._apiHeaders(country), life=60 * 60, country=country)
 
 	def getChannels(self, country=None):
-		"""Fetch channels via v2/guide/channels + categories, returned in legacy format."""
+		"""Fetch channels via v2/guide/channels + categories, returned in legacy format.
+
+		Falls back to the legacy api.pluto.tv endpoint if the new API returns
+		no data (some countries like Finland are not on the new API).
+		"""
 		country = country or config.plugins.plutotv.country.value
 		headers = self._authHeaders(country)
 		params = {'channelIds': '', 'offset': '0', 'limit': '1000', 'sort': 'number:asc'}
@@ -269,8 +306,13 @@ class PlutoRequest:
 			response = self.session.get(self.CHANNELS_URL, params=params, headers=headers, timeout=10)
 			response.raise_for_status()
 			channel_list = response.json().get("data", [])
-		except Exception:
-			return []
+		except Exception as e:
+			print(f"[PlutoTV] getChannels new API error for {country}: {e}")
+			channel_list = []
+
+		if not channel_list:
+			print(f"[PlutoTV] getChannels: new API returned no channels for {country}, trying legacy API")
+			return self._getChannelsLegacy(country)
 
 		try:
 			response = self.session.get(self.CATEGORIES_URL, params=params, headers=headers, timeout=10)
@@ -303,12 +345,36 @@ class PlutoRequest:
 
 		return result
 
+	def _getChannelsLegacy(self, country):
+		"""Fetch channels via the legacy api.pluto.tv/v2/channels.json endpoint."""
+		params = {'sid': self._sid, 'deviceId': self._deviceId}
+		headers = self._legacyHeaders(country)
+		try:
+			response = requests.get(self.LEGACY_CHANNELS_URL, params=params, headers=headers, timeout=10)
+			response.raise_for_status()
+			channels = response.json()
+			if isinstance(channels, list):
+				print(f"[PlutoTV] getChannels legacy API returned {len(channels)} channels for {country}")
+				return channels
+			print(f"[PlutoTV] getChannels legacy API unexpected response for {country}")
+			return []
+		except Exception as e:
+			print(f"[PlutoTV] getChannels legacy API error for {country}: {e}")
+			return []
+
 	def getBaseGuide(self, start, stop, country=None):
-		"""Fetch guide data via v2/guide/timelines, returned in legacy format."""
+		"""Fetch guide data via v2/guide/timelines, returned in legacy format.
+
+		Falls back to the legacy api.pluto.tv endpoint if the new API returns
+		no data (some countries like Finland are not on the new API).
+		"""
 		country = country or config.plugins.plutotv.country.value
 		headers = self._authHeaders(country)
 
 		channels = self.getChannels(country)
+		if not channels:
+			return []
+
 		channel_ids = [ch['_id'] for ch in channels]
 		channel_lookup = {ch['_id']: ch for ch in channels}
 
@@ -334,10 +400,31 @@ class PlutoRequest:
 						'name': ch_data.get('name', ''),
 						'timelines': entry.get('timelines', []),
 					})
-			except Exception:
-				pass
+			except Exception as e:
+				print(f"[PlutoTV] getBaseGuide new API error for {country}: {e}")
+
+		if not all_entries:
+			print(f"[PlutoTV] getBaseGuide: new API returned no data for {country}, trying legacy API")
+			return self._getBaseGuideLegacy(start, stop, country)
 
 		return all_entries
+
+	def _getBaseGuideLegacy(self, start, stop, country):
+		"""Fetch guide data via the legacy api.pluto.tv/v2/channels endpoint."""
+		params = {'start': start, 'stop': stop, 'sid': self._sid, 'deviceId': self._deviceId}
+		headers = self._legacyHeaders(country)
+		try:
+			response = requests.get(self.LEGACY_GUIDE_URL, params=params, headers=headers, timeout=10)
+			response.raise_for_status()
+			guide = response.json()
+			if isinstance(guide, list):
+				print(f"[PlutoTV] getBaseGuide legacy API returned {len(guide)} entries for {country}")
+				return guide
+			print(f"[PlutoTV] getBaseGuide legacy API unexpected response for {country}")
+			return []
+		except Exception as e:
+			print(f"[PlutoTV] getBaseGuide legacy API error for {country}: {e}")
+			return []
 
 
 plutoRequest = PlutoRequest()
