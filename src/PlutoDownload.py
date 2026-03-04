@@ -438,7 +438,6 @@ TSIDS = {cc: "%X" % i for i, cc in enumerate(COUNTRY_NAMES, 1)}
 config.plugins.plutotv = ConfigSubsection()
 config.plugins.plutotv.country = ConfigSelection(default="local", choices=[("local", _("Local"))] + list(COUNTRY_NAMES.items()))
 config.plugins.plutotv.picons = ConfigSelection(default="snp", choices=[("snp", _("service name")), ("srp", _("service reference")), ("", _("None"))])
-config.plugins.plutotv.live_tv_mode = ConfigSelection(default="samsung", choices=[("original", _("Original")), ("roku", _("Roku TV")), ("samsung", _("Samsung TV"))])
 
 
 def getselectedcountries(skip=0):
