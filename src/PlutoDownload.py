@@ -738,7 +738,7 @@ class PlutoDownloadBase():
 		_id = channel["_id"]
 
 		# Build authenticated stitcher URL (same as pluto-for-channels)
-		urls = plutoRequest.buildStreamURL(_id, self.bouquetCC)
+		url = plutoRequest.buildStreamURL(_id, self.bouquetCC)
 
 		if group not in list(self.channelsList.keys()):
 			self.channelsList[group] = []
@@ -749,7 +749,7 @@ class PlutoDownloadBase():
 		else:
 			number = "%X" % channel["number"]
 
-		self.channelsList[group].append((str(number), _id, channel["name"], logo, urls))
+		self.channelsList[group].append((str(number), _id, channel["name"], logo, url))
 		return True
 
 	@staticmethod
