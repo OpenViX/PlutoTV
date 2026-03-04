@@ -660,7 +660,7 @@ class PlutoDownloadBase():
 		if int(channel["number"]) == 0:
 			number = _id[-4:].upper()
 		else:
-			number = channel["number"]
+			number = "%X" % channel["number"]
 
 		self.channelsList[group].append((str(number), _id, channel["name"], logo, urls))
 		return True
