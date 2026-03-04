@@ -37,7 +37,7 @@ from Screens.Screen import Screen
 from Tools.CountryCodes import ISO3166
 from Tools.Directories import fileExists, sanitizeFilename
 
-from enigma import eDVBDB, eEPGCache, eTimer
+from enigma import eDVBDB, eEPGCache, eServiceReference, eTimer
 
 import datetime
 import os
@@ -95,9 +95,14 @@ class PlutoRequest:
 	STITCHER_FALLBACK = "https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv"
 	BASE_VOD = BASE_API + "/v3/vod/categories?includeItems=true&deviceType=web"
 	SEASON_VOD = BASE_API + "/v3/vod/series/%s/seasons?includeItems=true&deviceType=web"
+
 	# Legacy API endpoints (fallback for countries not on the new service-channels API)
 	LEGACY_CHANNELS_URL = BASE_API + "/v2/channels.json"
 	LEGACY_GUIDE_URL = BASE_API + "/v2/channels"
+
+	# for URL insertion at runtime
+	PLUTO_PATTERN = "PLUTO_SID_"
+	PLUTO_PLACEHOLDER = f"https://{{{PLUTO_PATTERN}%s}}.m3u8"
 
 	def __init__(self):
 		self.session = requests.Session()
@@ -426,6 +431,18 @@ class PlutoRequest:
 			print(f"[PlutoTV] getBaseGuide legacy API error for {country}: {e}")
 			return []
 
+	def playServiceExtension(self, nav, sref, *args, **kwargs):
+		return self.recordServiceExtension(nav, sref), False
+
+	def recordServiceExtension(self, nav, sref, *args, **kwargs):
+		parts = (srefstr := sref.toString()).split(":")
+		if len(parts) > 10 and self.PLUTO_PATTERN in parts[10]:
+			_id = parts[10].split(self.PLUTO_PATTERN)[1].split("}")[0].strip()
+			cc = {v: k for k, v in TSIDS.items()}.get(parts[4], None)
+			parts[10] = self.buildStreamURL(_id, cc).replace(":", "%3a")
+			sref = eServiceReference(":".join(parts))
+		return sref
+
 
 plutoRequest = PlutoRequest()
 
@@ -656,9 +673,9 @@ class PlutoDownloadBase():
 				if self.chitem == 0:
 					self.bouquet.append("1:64:%s:0:0:0:0:0:0:0::%s" % (self.key, self.categories[self.key]))
 
-				ch_sid, ch_hash, ch_name, ch_logourl, ch_url = self.channelsList[key][self.chitem]
+				ch_sid, ch_hash, ch_name, ch_logourl, _id = self.channelsList[key][self.chitem]
 
-				self.bouquet.append("4097:0:1:%s:%s:FF:CCCC0000:0:0:0:%s:%s" % (ch_sid, self.tsid, ch_url.replace(":", "%3A"), ch_name))
+				self.bouquet.append("4097:0:1:%s:%s:FF:CCCC0000:0:0:0:%s:%s" % (ch_sid, self.tsid, (plutoRequest.PLUTO_PLACEHOLDER % _id).replace(":", "%3a"), ch_name))
 				self.chitem += 1
 
 				ref = "4097:0:1:%s:%s:FF:CCCC0000:0:0:0" % (ch_sid, self.tsid)
@@ -748,7 +765,7 @@ class PlutoDownloadBase():
 		else:
 			number = "%X" % channel["number"]
 
-		self.channelsList[group].append((str(number), _id, channel["name"], logo, url))
+		self.channelsList[group].append((str(number), _id, channel["name"], logo, _id))
 		return True
 
 	@staticmethod

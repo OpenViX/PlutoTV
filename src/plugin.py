@@ -810,6 +810,10 @@ class Pluto_Player(MoviePlayer):
 
 
 def sessionstart(reason, session, **kwargs):
+	if hasattr(session.nav, "playServiceExtensions") and plutoRequest.playServiceExtension not in session.nav.playServiceExtensions:
+		session.nav.playServiceExtensions.append(plutoRequest.playServiceExtension)
+	if hasattr(session.nav, "recordServiceExtensions") and plutoRequest.recordServiceExtension not in session.nav.recordServiceExtensions:
+		session.nav.recordServiceExtensions.append(plutoRequest.recordServiceExtension)
 	Silent.init(session)
 
 
