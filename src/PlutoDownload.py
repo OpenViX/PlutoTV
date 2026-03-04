@@ -92,7 +92,7 @@ class PlutoRequest:
 	CHANNELS_URL = "https://service-channels.clusters.pluto.tv/v2/guide/channels"
 	CATEGORIES_URL = "https://service-channels.clusters.pluto.tv/v2/guide/categories"
 	TIMELINES_URL = "https://service-channels.clusters.pluto.tv/v2/guide/timelines"
-	STITCHER_BASE = "https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv"
+	STITCHER_FALLBACK = "https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv"
 	BASE_VOD = BASE_API + "/v3/vod/categories?includeItems=true&deviceType=web"
 	SEASON_VOD = BASE_API + "/v3/vod/series/%s/seasons?includeItems=true&deviceType=web"
 
@@ -148,8 +148,13 @@ class PlutoRequest:
 			response = self.session.get(self.BOOT_URL, headers=headers, params=params, timeout=10)
 			response.raise_for_status()
 			resp = response.json()
-			self.bootCache[country] = {"response": resp, "time": now}
-			print(f"[PlutoTV] New token for {country}")
+			self.bootCache[country] = {
+				"response": resp,
+				"time": now,
+				"stitcherUrl": resp.get("servers", {}).get("stitcher", self.STITCHER_FALLBACK),
+				"stitcherParams": resp.get("stitcherParams", ""),
+			}
+			print(f"[PlutoTV] New token for {country}, stitcher={self.bootCache[country]['stitcherUrl']}")
 			return resp
 		except Exception as e:
 			print(f"[PlutoTV] boot error: {e}")
@@ -173,21 +178,24 @@ class PlutoRequest:
 		return headers
 
 	def buildStreamURL(self, channel_id, country=None):
-		"""Build authenticated stitcher stream URL (same as pluto-for-channels).
+		"""Build authenticated stitcher stream URL.
 
-		We intentionally omit stitcherParams to keep the URL short (~1600 chars
-		instead of ~2500). The JWT is self-contained and masterJWTPassthrough=true
-		tells the stitcher to forward it. The stitcherParams are redundant device/
-		ad-targeting info already encoded in the JWT. Shorter URLs reduce the risk
-		of eServiceMP3 / GStreamer crashes during rapid channel zapping.
+		Uses the stitcher URL and stitcherParams from the boot API response
+		so each country is routed to the correct CDN endpoint.
 		"""
 		country = country or config.plugins.plutotv.country.value
-		boot_resp = self.boot(country)
-		token = boot_resp.get('sessionToken', '')
-		return (
-			f"{self.STITCHER_BASE}/v2/stitch/hls/channel/{channel_id}/master.m3u8"
+		self.boot(country)
+		cache = self.bootCache.get(country, {})
+		token = cache.get('response', {}).get('sessionToken', '')
+		stitcherUrl = cache.get('stitcherUrl', self.STITCHER_FALLBACK)
+		stitcherParams = cache.get('stitcherParams', '')
+		url = (
+			f"{stitcherUrl}/v2/stitch/hls/channel/{channel_id}/master.m3u8"
 			f"?jwt={token}&masterJWTPassthrough=true"
 		)
+		if stitcherParams:
+			url += f"&{stitcherParams}"
+		return url
 
 	def _apiHeaders(self, country=None):
 		"""Build authorization headers for api.pluto.tv endpoints (VOD)."""
@@ -225,17 +233,20 @@ class PlutoRequest:
 			return {}
 
 	def buildVodStreamURL(self, vod_url, country=None):
-		"""Rewrite a VOD stitched URL to use the new stitcher host + JWT auth.
+		"""Rewrite a VOD stitched URL to use the correct stitcher host + JWT auth.
 
 		The VOD API returns URLs on the old stitcher (service-stitcher-ipv4.clusters.pluto.tv)
 		with stale/empty query params. We need to:
-		1. Replace the host with the new CDN stitcher
+		1. Replace the host with the stitcher from boot response
 		2. Ensure the path has the /v2 prefix
-		3. Strip all old query params, use only jwt + masterJWTPassthrough
+		3. Strip all old query params, use jwt + masterJWTPassthrough + stitcherParams
 		"""
 		country = country or config.plugins.plutotv.country.value
-		boot_resp = self.boot(country)
-		token = boot_resp.get('sessionToken', '')
+		self.boot(country)
+		cache = self.bootCache.get(country, {})
+		token = cache.get('response', {}).get('sessionToken', '')
+		stitcherUrl = cache.get('stitcherUrl', self.STITCHER_FALLBACK)
+		stitcherParams = cache.get('stitcherParams', '')
 
 		# Extract the path from the old URL (strip host and query string)
 		# e.g. https://service-stitcher-ipv4.clusters.pluto.tv/stitch/hls/episode/XXX/master.m3u8?...
@@ -246,10 +257,13 @@ class PlutoRequest:
 		if path.startswith('/stitch/'):
 			path = '/v2' + path
 
-		return (
-			f"{self.STITCHER_BASE}{path}"
+		url = (
+			f"{stitcherUrl}{path}"
 			f"?jwt={token}&masterJWTPassthrough=true"
 		)
+		if stitcherParams:
+			url += f"&{stitcherParams}"
+		return url
 
 	def getVOD(self, epid, country=None):
 		country = country or config.plugins.plutotv.country.value
