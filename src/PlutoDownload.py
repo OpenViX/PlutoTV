@@ -435,7 +435,7 @@ class PlutoRequest:
 		return self.recordServiceExtension(nav, sref), False
 
 	def recordServiceExtension(self, nav, sref, *args, **kwargs):
-		parts = (srefstr := sref.toString()).split(":")
+		parts = sref.toString().split(":")
 		if len(parts) > 10 and self.PLUTO_PATTERN in parts[10]:
 			_id = parts[10].split(self.PLUTO_PATTERN)[1].split("}")[0].strip()
 			cc = {v: k for k, v in TSIDS.items()}.get(parts[4], None)
