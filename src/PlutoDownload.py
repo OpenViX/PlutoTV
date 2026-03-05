@@ -51,6 +51,79 @@ import threading  # for fetching picons
 from twisted.internet import threads  # for updating GUI widgets
 
 
+STREAM_POOL_SIZE = 4  # Number of virtual devices for concurrent streams.
+
+
+class _PlutoSlot:
+	"""One virtual device with its own clientID, HTTP session and boot cache."""
+
+	def __init__(self, index, x_forwards, stitcher_fallback):
+		self.index = index
+		self._x_forwards = x_forwards
+		self._stitcher_fallback = stitcher_fallback
+		self.session = requests.Session()
+		self.client_id = str(uuid.uuid4())
+		self.bootCache = {}
+
+	def boot(self, country=None):
+		country = country or config.plugins.plutotv.country.value
+		now = time.time()
+
+		if country in self.bootCache:
+			if (now - self.bootCache[country]["time"]) < 4 * 3600:
+				return self.bootCache[country]["response"]
+
+		headers = {
+			'authority': 'boot.pluto.tv',
+			'accept': '*/*',
+			'accept-language': 'en-US,en;q=0.9',
+			'origin': 'https://pluto.tv',
+			'referer': 'https://pluto.tv/',
+			'sec-ch-ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+			'sec-ch-ua-mobile': '?0',
+			'sec-ch-ua-platform': '"Linux"',
+			'sec-fetch-dest': 'empty',
+			'sec-fetch-mode': 'cors',
+			'sec-fetch-site': 'same-site',
+			'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+		}
+
+		params = {
+			'appName': 'web',
+			'appVersion': '8.0.0-111b2b9dc00bd0bea9030b30662159ed9e7c8bc6',
+			'deviceVersion': '122.0.0',
+			'deviceModel': 'web',
+			'deviceMake': 'chrome',
+			'deviceType': 'web',
+			'clientID': self.client_id,
+			'clientModelNumber': '1.0.0',
+			'serverSideAds': 'false',
+			'deviceDNT': '1',
+			'drmCapabilities': 'widevine:L3',
+			'blockingMode': '',
+		}
+
+		ip = self._x_forwards.get(country)
+		if ip:
+			headers['X-Forwarded-For'] = ip
+
+		try:
+			response = self.session.get(PlutoRequest.BOOT_URL, headers=headers, params=params, timeout=10)
+			response.raise_for_status()
+			resp = response.json()
+			self.bootCache[country] = {
+				"response": resp,
+				"time": now,
+				"stitcherUrl": resp.get("servers", {}).get("stitcher", self._stitcher_fallback),
+				"stitcherParams": resp.get("stitcherParams", ""),
+			}
+			print(f"[PlutoTV] Slot {self.index} new token for {country}, stitcher={self.bootCache[country]['stitcherUrl']}")
+			return resp
+		except Exception as e:
+			print(f"[PlutoTV] Slot {self.index} boot error: {e}")
+			return {}
+
+
 class PlutoRequest:
 	X_FORWARDS = {
 		"us": "185.236.200.172",
@@ -105,69 +178,35 @@ class PlutoRequest:
 	PLUTO_PLACEHOLDER = f"https://{{{PLUTO_PATTERN}%s}}.m3u8"
 
 	def __init__(self):
-		self.session = requests.Session()
-		self.bootCache = {}
+		# Slot 0 is the "primary" slot used for metadata / API calls.
+		self._pool = [_PlutoSlot(i, self.X_FORWARDS, self.STITCHER_FALLBACK) for i in range(STREAM_POOL_SIZE)]
+		self._stream_index = 0
 		self.requestCache = {}
 		self._sid = str(uuid.uuid1().hex)
 		self._deviceId = str(uuid.uuid4().hex)
 
+	# Legacy convenience properties so existing code keeps working.
+	@property
+	def session(self):
+		return self._pool[0].session
+
+	@property
+	def bootCache(self):
+		return self._pool[0].bootCache
+
+	@bootCache.setter
+	def bootCache(self, value):
+		self._pool[0].bootCache = value
+
+	def _nextStreamSlot(self):
+		"""Round-robin through pool slots for stream URLs."""
+		slot = self._pool[self._stream_index % STREAM_POOL_SIZE]
+		self._stream_index += 1
+		return slot
+
 	def boot(self, country=None):
-		"""Acquire token via boot.pluto.tv/v4/start (same as pluto-for-channels)."""
-		country = country or config.plugins.plutotv.country.value
-		now = time.time()
-
-		if country in self.bootCache:
-			if (now - self.bootCache[country]["time"]) < 4 * 3600:
-				return self.bootCache[country]["response"]
-
-		headers = {
-			'authority': 'boot.pluto.tv',
-			'accept': '*/*',
-			'accept-language': 'en-US,en;q=0.9',
-			'origin': 'https://pluto.tv',
-			'referer': 'https://pluto.tv/',
-			'sec-ch-ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
-			'sec-ch-ua-mobile': '?0',
-			'sec-ch-ua-platform': '"Linux"',
-			'sec-fetch-dest': 'empty',
-			'sec-fetch-mode': 'cors',
-			'sec-fetch-site': 'same-site',
-			'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-		}
-
-		params = {
-			'appName': 'web',
-			'appVersion': '8.0.0-111b2b9dc00bd0bea9030b30662159ed9e7c8bc6',
-			'deviceVersion': '122.0.0',
-			'deviceModel': 'web',
-			'deviceMake': 'chrome',
-			'deviceType': 'web',
-			'clientID': str(uuid.uuid4()),
-			'clientModelNumber': '1.0.0',
-			'serverSideAds': 'false',
-			'drmCapabilities': 'widevine:L3',
-			'blockingMode': '',
-		}
-
-		ip = self.X_FORWARDS.get(country)
-		if ip:
-			headers['X-Forwarded-For'] = ip
-
-		try:
-			response = requests.get(self.BOOT_URL, headers=headers, params=params, timeout=10)
-			response.raise_for_status()
-			resp = response.json()
-			self.bootCache[country] = {
-				"response": resp,
-				"time": now,
-				"stitcherUrl": resp.get("servers", {}).get("stitcher", self.STITCHER_FALLBACK),
-				"stitcherParams": resp.get("stitcherParams", ""),
-			}
-			print(f"[PlutoTV] New token for {country}, stitcher={self.bootCache[country]['stitcherUrl']}")
-			return resp
-		except Exception as e:
-			print(f"[PlutoTV] boot error: {e}")
-			return {}
+		"""Boot the primary (metadata) slot."""
+		return self._pool[0].boot(country)
 
 	def _authHeaders(self, country=None):
 		"""Build authorization headers for service-channels API."""
@@ -189,12 +228,13 @@ class PlutoRequest:
 	def buildStreamURL(self, channel_id, country=None):
 		"""Build authenticated stitcher stream URL.
 
-		Uses the stitcher URL and stitcherParams from the boot API response
-		so each country is routed to the correct CDN endpoint.
+		Uses a pool slot so each concurrent stream gets its own clientID
+		device identity, preventing Pluto from killing concurrent streams.
 		"""
 		country = country or config.plugins.plutotv.country.value
-		self.boot(country)
-		cache = self.bootCache.get(country, {})
+		slot = self._nextStreamSlot()
+		slot.boot(country)
+		cache = slot.bootCache.get(country, {})
 		token = cache.get('response', {}).get('sessionToken', '')
 		stitcherUrl = cache.get('stitcherUrl', self.STITCHER_FALLBACK)
 		stitcherParams = cache.get('stitcherParams', '')
@@ -204,6 +244,7 @@ class PlutoRequest:
 		)
 		if stitcherParams:
 			url += f"&{stitcherParams}"
+		print(f"[PlutoTV] buildStreamURL slot {slot.index} for {channel_id}")
 		return url
 
 	def _apiHeaders(self, country=None):
@@ -259,15 +300,13 @@ class PlutoRequest:
 	def buildVodStreamURL(self, vod_url, country=None):
 		"""Rewrite a VOD stitched URL to use the correct stitcher host + JWT auth.
 
-		The VOD API returns URLs on the old stitcher (service-stitcher-ipv4.clusters.pluto.tv)
-		with stale/empty query params. We need to:
-		1. Replace the host with the stitcher from boot response
-		2. Ensure the path has the /v2 prefix
-		3. Strip all old query params, use jwt + masterJWTPassthrough + stitcherParams
+		Uses a pool slot so each concurrent stream gets its own clientID
+		device identity, preventing Pluto from killing concurrent streams.
 		"""
 		country = country or config.plugins.plutotv.country.value
-		self.boot(country)
-		cache = self.bootCache.get(country, {})
+		slot = self._nextStreamSlot()
+		slot.boot(country)
+		cache = slot.bootCache.get(country, {})
 		token = cache.get('response', {}).get('sessionToken', '')
 		stitcherUrl = cache.get('stitcherUrl', self.STITCHER_FALLBACK)
 		stitcherParams = cache.get('stitcherParams', '')
