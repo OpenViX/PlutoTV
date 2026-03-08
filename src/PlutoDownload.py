@@ -101,8 +101,7 @@ class PlutoRequest:
 	LEGACY_GUIDE_URL = BASE_API + "/v2/channels"
 
 	# for URL insertion at runtime
-	PLUTO_PATTERN = "PLUTO_SID_"
-	PLUTO_PLACEHOLDER = f"https://{{{PLUTO_PATTERN}%s}}.m3u8"
+	PLUTO_SCHEMA = "pluto%3a//"
 
 	def __init__(self):
 		self.session = requests.Session()
@@ -449,8 +448,8 @@ class PlutoRequest:
 
 	def recordServiceExtension(self, nav, sref, *args, **kwargs):
 		parts = sref.toString().split(":")
-		if len(parts) > 10 and self.PLUTO_PATTERN in parts[10]:
-			_id = parts[10].split(self.PLUTO_PATTERN)[1].split("}")[0].strip()
+		if len(parts) > 10 and parts[10].lower().startswith(self.PLUTO_SCHEMA):
+			_id = parts[10][len(self.PLUTO_SCHEMA):]
 			cc = {v: k for k, v in TSIDS.items()}.get(parts[4], None)
 			parts[10] = self.buildStreamURL(_id, cc).replace(":", "%3a")
 			sref = eServiceReference(":".join(parts))
@@ -688,7 +687,7 @@ class PlutoDownloadBase():
 
 				ch_sid, ch_hash, ch_name, ch_logourl, _id = self.channelsList[key][self.chitem]
 
-				self.bouquet.append("4097:0:1:%s:%s:FF:CCCC0000:0:0:0:%s:%s" % (ch_sid, self.tsid, (plutoRequest.PLUTO_PLACEHOLDER % _id).replace(":", "%3a"), ch_name))
+				self.bouquet.append("4097:0:1:%s:%s:FF:CCCC0000:0:0:0:%s:%s" % (ch_sid, self.tsid, plutoRequest.PLUTO_SCHEMA + _id, ch_name))
 				self.chitem += 1
 
 				ref = "4097:0:1:%s:%s:FF:CCCC0000:0:0:0" % (ch_sid, self.tsid)
