@@ -111,13 +111,26 @@ class PlutoRequest:
 		self._sid = str(uuid.uuid1().hex)
 		self._deviceId = str(uuid.uuid4().hex)
 
+	@staticmethod
+	def _tokenExpiry(token):
+		try:
+			from json import loads
+			from base64 import urlsafe_b64decode
+			payload = token.split(".")[1]
+			padding = 4 - len(payload) % 4
+			if padding != 4:
+				payload += "=" * padding
+			return loads(urlsafe_b64decode(payload)).get("exp", 0)
+		except Exception:
+			return 0
+
 	def boot(self, country=None):
 		"""Acquire token via boot.pluto.tv/v4/start (same as pluto-for-channels)."""
 		country = country or config.plugins.plutotv.country.value
 		now = time.time()
 
 		if country in self.bootCache:
-			if (now - self.bootCache[country]["time"]) < 4 * 3600:
+			if now < self.bootCache[country]["exp"] - 60:
 				return self.bootCache[country]["response"]
 
 		headers = {
@@ -159,7 +172,7 @@ class PlutoRequest:
 			resp = response.json()
 			self.bootCache[country] = {
 				"response": resp,
-				"time": now,
+				"exp": self._tokenExpiry(resp.get("sessionToken", "")),
 				"stitcherUrl": resp.get("servers", {}).get("stitcher", self.STITCHER_FALLBACK),
 				"stitcherParams": resp.get("stitcherParams", ""),
 			}
