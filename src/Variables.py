@@ -10,3 +10,4 @@ PLUGIN_ICON = "plutotv.png"
 BOUQUET_FILE = "userbouquet.pluto_tv_%s.tv"
 BOUQUET_NAME = "Pluto TV (%s)"
 NUMBER_OF_LIVETV_BOUQUETS = 5  # maximum number of bouquets
+USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"

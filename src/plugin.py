@@ -24,7 +24,7 @@
 # for localized messages
 from . import _, PluginLanguageDomain
 from .PlutoDownload import plutoRequest, PlutoDownload, Silent, getselectedcountries, PiconFetcher  # , getClips
-from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, NUMBER_OF_LIVETV_BOUQUETS, PLUGIN_ICON
+from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, NUMBER_OF_LIVETV_BOUQUETS, PLUGIN_ICON, USER_AGENT
 
 from skin import applySkinFactor, fonts, parameters
 
@@ -180,7 +180,7 @@ class DownloadPosters:
 			success = True
 		else:
 			try:
-				response = requests.get(url, timeout=2.50, headers={"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"})
+				response = requests.get(url, timeout=2.50, headers={"User-Agent": USER_AGENT})
 				response.raise_for_status()
 				content_type = response.headers.get('content-type')
 				if content_type and content_type.lower() == 'image/jpeg' and len(rc := response.content):

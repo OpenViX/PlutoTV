@@ -26,7 +26,7 @@
 
 # for localized messages
 from . import _
-from .Variables import TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, BOUQUET_NAME, NUMBER_OF_LIVETV_BOUQUETS, PLUGIN_ICON
+from .Variables import TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, BOUQUET_NAME, NUMBER_OF_LIVETV_BOUQUETS, PLUGIN_ICON, USER_AGENT
 
 from Components.ActionMap import ActionMap
 from Components.config import ConfigSelection, ConfigSubsection, config
@@ -132,7 +132,7 @@ class PlutoRequest:
 			'sec-fetch-dest': 'empty',
 			'sec-fetch-mode': 'cors',
 			'sec-fetch-site': 'same-site',
-			'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+			'user-agent': USER_AGENT,
 		}
 
 		params = {
@@ -215,7 +215,7 @@ class PlutoRequest:
 			'authorization': f'Bearer {token}',
 			'origin': 'https://pluto.tv',
 			'referer': 'https://pluto.tv/',
-			'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+			'user-agent': USER_AGENT,
 		}
 		ip = self.X_FORWARDS.get(country)
 		if ip:
@@ -231,13 +231,13 @@ class PlutoRequest:
 			'connection': 'keep-alive',
 			'referer': 'http://pluto.tv/',
 			'origin': 'http://pluto.tv',
-			'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+			'user-agent': USER_AGENT,
 		}
 		if ip:
 			headers['X-Forwarded-For'] = ip
 		return headers
 
-	def getURL(self, url, param=None, header={"User-agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"}, life=60 * 15, country=None):
+	def getURL(self, url, param=None, header={"User-agent": USER_AGENT}, life=60 * 15, country=None):
 		if param is None:
 			param = {}
 		now = time.time()
@@ -521,7 +521,7 @@ class PiconFetcher:
 		filepath = os.path.join(self.pluginPiconDir, piconname.removeprefix(self.piconDir).removeprefix(os.sep))  # second removeprefix ensures no leading / is left on the filename as this would be recognised as an absolute path by os.path.join and the join would be skipped
 		self.counter += 1
 		try:
-			response = requests.get(f"{url}{self.resolutionStr}", timeout=2.50, headers={"User-Agent": "Mozilla/5.0 (Windows NT 6.2; rv:24.0) Gecko/20100101 Firefox/24.0"})
+			response = requests.get(f"{url}{self.resolutionStr}", timeout=2.50, headers={"User-Agent": USER_AGENT})
 			response.raise_for_status()
 			content_type = response.headers.get('content-type')
 			if content_type and content_type.lower() == 'image/png' and len(rc := response.content):
