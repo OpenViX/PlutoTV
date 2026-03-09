@@ -281,10 +281,6 @@ class PlutoTV(Screen, HelpableScreen):
 		self["playlist"] = StaticText(self.titlemenu)
 		self["loading"] = Label(_("Loading data... Please wait"))
 		self["vtitle"] = StaticText()
-		self.vinfo = ""
-		self.description = ""
-		self.eptitle = ""
-		self.epinfo = ""
 		self["key_red"] = StaticText(_("Exit"))
 		self["key_yellow"] = StaticText()
 		self.mdb = isPluginInstalled("tmdb") and "tmdb" or isPluginInstalled("IMDb") and "imdb"
@@ -294,19 +290,9 @@ class PlutoTV(Screen, HelpableScreen):
 		self["key_menu"] = StaticText(_("MENU"))
 		self["poster"] = Pixmap()
 		self["posterBG"] = Label()
-		self["poster"].hide()
-		self["posterBG"].hide()
 		self["logo"] = Pixmap()
-		self.title = _("PlutoTV") + " - " + self.titlemenu
 		self["info"] = ScrollLabel()  # combined info for fluid layout
-
 		self["feedlist"].onSelectionChanged.append(self.update_data)
-		self.films = []
-		self.menu = []
-		self.history = []
-		self.chapters = {}
-		self.numSeasons = 0
-
 		self.sc = AVSwitch().getFramebufferScale()
 		self.picload = ePicLoad()
 
@@ -338,6 +324,26 @@ class PlutoTV(Screen, HelpableScreen):
 
 		self.TimerTemp = eTimer()
 		self.TimerTemp.callback.append(self.getCategories)
+		self.initialise()
+
+	def initialise(self):
+		self.country = config.plugins.plutotv.country.value
+		self.films = []
+		self.menu = []
+		self.history = []
+		self.chapters = {}
+		self.numSeasons = 0
+		self.vinfo = ""
+		self.description = ""
+		self.eptitle = ""
+		self.epinfo = ""
+		self["feedlist"].setList([])
+		self["poster"].hide()
+		self["posterBG"].hide()
+		self["info"].setText("")
+		self["vtitle"].setText("")
+		self["loading"].show()
+		self.title = _("PlutoTV") + " - " + self.titlemenu
 		self.TimerTemp.start(10, 1)
 
 	def update_data(self):
@@ -434,7 +440,7 @@ class PlutoTV(Screen, HelpableScreen):
 
 	def getCategories(self):
 		self.lvod = {}
-		ondemand = plutoRequest.getOndemand()
+		ondemand = plutoRequest.getOndemand(self.country)
 		categories = ondemand.get("categories", [])
 		if not categories:
 			self.session.open(MessageBox, _("There is no data, it is possible that Pluto TV is not available in your country"), type=MessageBox.TYPE_ERROR, timeout=10)
@@ -663,7 +669,10 @@ class PlutoTV(Screen, HelpableScreen):
 				self.session.open(IMDB, name, False)
 
 	def loadSetup(self):
-		self.session.openWithCallback(self.close, PlutoSetup)
+		def loadSetupCallback(result=None):
+			if config.plugins.plutotv.country.value != self.country:
+				self.initialise()
+		self.session.openWithCallback(loadSetupCallback, PlutoSetup)
 
 	def addColor(self, text, i=1):
 		if i < len(self.colors):
@@ -694,22 +703,6 @@ class PlutoSetup(Setup):
 		configList.append((_("Picon type"), config.plugins.plutotv.picons, _("Using service name picons means they will continue to work even if the service reference changes. Also, they can be shared between channels of the same name that don't have the same service references.")))
 		configList.append((_("Data location"), config.plugins.plutotv.datalocation, _("Used for storing video cover graphics, etc. A hard drive that goes into standby mode or a slow network mount are not good choices.")))
 		self["config"].list = configList
-
-	def keyCancel(self):
-		for x in self['config'].list:
-			if len(x) > 1:
-				x[1].cancel()
-		self.exit()
-
-	def closeRecursive(self):
-		self.keyCancel()
-
-	def keySave(self):
-		self.saveAll()
-		self.exit()
-
-	def exit(self):
-		self.session.openWithCallback(self.close, PlutoTV)
 
 	def updateYellowButton(self):
 		if os.path.isdir(PiconFetcher().pluginPiconDir):
