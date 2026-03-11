@@ -23,7 +23,7 @@
 
 # for localized messages
 from . import _, PluginLanguageDomain
-from .PlutoDownload import plutoRequest, PlutoDownload, Silent, getselectedcountries, PiconFetcher  # , getClips
+from .PlutoDownload import plutoRequest, PlutoDownload, Silent, getselectedcountries, PiconFetcher, COUNTRY_NAMES  # , getClips
 from .Variables import RESUMEPOINTS_FILE, TIMER_FILE, PLUGIN_FOLDER, BOUQUET_FILE, NUMBER_OF_LIVETV_BOUQUETS, PLUGIN_ICON, USER_AGENT
 
 from skin import applySkinFactor, fonts, parameters
@@ -39,6 +39,7 @@ from Components.ScrollLabel import ScrollLabel
 from Components.ServiceEventTracker import ServiceEventTracker
 from Components.Sources.StaticText import StaticText
 from Plugins.Plugin import PluginDescriptor
+from Screens.ChoiceBox import ChoiceBox
 from Screens.HelpMenu import HelpableScreen
 from Screens.InfoBar import MoviePlayer
 from Screens.MessageBox import MessageBox
@@ -276,9 +277,8 @@ class PlutoTV(Screen, HelpableScreen):
 		self.colors = parameters.get("PlutoTvColors", [])  # First item must be default text colour. If parameter is missing adding colours will be skipped.
 
 		self.downloadPosters = DownloadPosters()
-		self.titlemenu = _("VOD Menu")
 		self["feedlist"] = PlutoList([])
-		self["playlist"] = StaticText(self.titlemenu)
+		self["playlist"] = StaticText()
 		self["loading"] = Label(_("Loading data... Please wait"))
 		self["vtitle"] = StaticText()
 		self["key_red"] = StaticText(_("Exit"))
@@ -288,6 +288,7 @@ class PlutoTV(Screen, HelpableScreen):
 		self["key_green"] = StaticText()
 		self["updated"] = StaticText()
 		self["key_menu"] = StaticText(_("MENU"))
+		self["key_blue"] = StaticText(_("Change country"))
 		self["poster"] = Pixmap()
 		self["posterBG"] = Label()
 		self["logo"] = Pixmap()
@@ -311,6 +312,11 @@ class PlutoTV(Screen, HelpableScreen):
 		}, -1)
 		self["MDBActions"].setEnabled(False)
 
+		self["CountryActions"] = HelpableActionMap(self, ["ColorActions"],
+		{
+			"blue": (self.switchCountry, _("Load the VoD list of another country")),
+		}, -1)
+
 		self["InfoNavigationActions"] = HelpableActionMap(self, ["NavigationActions"],
 		{
 			"pageUp": (self["info"].pageUp, _("Scroll the information field")),
@@ -324,10 +330,11 @@ class PlutoTV(Screen, HelpableScreen):
 
 		self.TimerTemp = eTimer()
 		self.TimerTemp.callback.append(self.getCategories)
+		self.country = config.plugins.plutotv.country.value
 		self.initialise()
 
 	def initialise(self):
-		self.country = config.plugins.plutotv.country.value
+		self.titlemenu = _("VOD Menu") + " - " + COUNTRY_NAMES[self.country]
 		self.films = []
 		self.menu = []
 		self.history = []
@@ -342,6 +349,7 @@ class PlutoTV(Screen, HelpableScreen):
 		self["posterBG"].hide()
 		self["info"].setText("")
 		self["vtitle"].setText("")
+		self["playlist"].setText(self.titlemenu)
 		self["loading"].show()
 		self.title = _("PlutoTV") + " - " + self.titlemenu
 		self.TimerTemp.start(10, 1)
@@ -671,8 +679,23 @@ class PlutoTV(Screen, HelpableScreen):
 	def loadSetup(self):
 		def loadSetupCallback(result=None):
 			if config.plugins.plutotv.country.value != self.country:
+				self.country = config.plugins.plutotv.country.value
 				self.initialise()
 		self.session.openWithCallback(loadSetupCallback, PlutoSetup)
+
+	def switchCountry(self):
+		def switchCountryCallback(result=None):
+			if result and result[1] != self.country:
+				self.country = result[1]
+				self.initialise()
+		self.session.openWithCallback(
+			switchCountryCallback,
+			ChoiceBox,
+			title=_("Temporarily switch the VoD list to another country"),
+			list=list(zip(config.plugins.plutotv.country.description, config.plugins.plutotv.country.choices)),
+			selection=config.plugins.plutotv.country.choices.index(self.country),
+			keys=[]
+		)
 
 	def addColor(self, text, i=1):
 		if i < len(self.colors):
