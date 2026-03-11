@@ -546,7 +546,7 @@ class PlutoTV(Screen, HelpableScreen):
 			self.title = _("PlutoTV") + " - " + self.titlemenu
 			self.history.append((index, menuact))
 		if __type == "series":
-			chapters = plutoRequest.getVOD(_id)
+			chapters = plutoRequest.getVOD(_id, self.country)
 			self.buildchapters(chapters)
 			for key in list(self.chapters.keys()):
 				sname = key
@@ -622,7 +622,7 @@ class PlutoTV(Screen, HelpableScreen):
 
 	def playVOD(self, name, id, url=None):
 		if url:
-			url = plutoRequest.buildVodStreamURL(url)
+			url = plutoRequest.buildVodStreamURL(url, self.country)
 
 		if url and name:
 			string = "4097:0:0:0:0:0:0:0:0:0:%s:%s" % (quote(url), quote(name))
