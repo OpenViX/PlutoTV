@@ -31,7 +31,7 @@ msgstr "Ein Download läuft im Hintergrund."
 
 #: ../src/plugin.py:291
 msgid "Change country"
-msgstr ""
+msgstr "Wähle ein Land"
 
 #: ../src/plugin.py:724
 #, python-format
@@ -60,11 +60,11 @@ msgstr "PlutoTV Bouquet, Picons und EPG Download"
 
 #: ../src/plugin.py:575
 msgid "Episode"
-msgstr ""
+msgstr "Episode"
 
 #: ../src/plugin.py:284
 msgid "Exit"
-msgstr "Verlassen"
+msgstr "Beenden"
 
 #: ../src/PlutoDownload.py:633
 msgid "Fetching picons..."
@@ -76,11 +76,11 @@ msgstr "Gehe eine Ebene zurück"
 
 #: ../src/plugin.py:303
 msgid "Go back one level including exiting"
-msgstr "Gehe eine Ebene zurück mit Exit"
+msgstr "Gehe eine Ebene zurück mit Beenden"
 
 #: ../src/plugin.py:302
 msgid "Go forward one level incuding starting playback"
-msgstr "Gehe eine Ebene forwärts mit Playback-Start"
+msgstr "Gehe eine Ebene vorwärts mit Playback-Start"
 
 #: ../src/plugin.py:287
 msgid "IMDb Search"
@@ -105,11 +105,11 @@ msgstr "Update des LiveTV-Bouquets ist beendet."
 
 #: ../src/plugin.py:317
 msgid "Load the VoD list of another country"
-msgstr ""
+msgstr "Lade die VoD-Liste eines anderen Landes"
 
 #: ../src/plugin.py:282
 msgid "Loading data... Please wait"
-msgstr "Lade Daten - bitte warten. "
+msgstr "Lade Daten... "
 
 #: ../src/PlutoDownload.py:468
 msgid "Local"
@@ -126,7 +126,7 @@ msgstr "Keine"
 
 #: ../src/plugin.py:306
 msgid "Open the plugin configuration screen"
-msgstr "Öffne die Plugin Konfiguration"
+msgstr "Öffne die Plugin-Konfiguration"
 
 #: ../src/plugin.py:726
 msgid "Picon type"
@@ -139,7 +139,7 @@ msgstr "Bitte warten..."
 #: ../src/plugin.py:354 ../src/plugin.py:554 ../src/plugin.py:567
 #: ../src/plugin.py:579 ../src/plugin.py:627 ../src/plugin.py:846
 msgid "PlutoTV"
-msgstr ""
+msgstr "PlutoTV"
 
 #: ../src/plugin.py:716
 msgid "PlutoTV Setup"
@@ -197,11 +197,11 @@ msgstr "TMDb Suche"
 
 #: ../src/plugin.py:694
 msgid "Temporarily switch the VoD list to another country"
-msgstr ""
+msgstr "Lade vorübergehend die VoD-Liste eines anderen Landes""
 
 #: ../src/plugin.py:311
 msgid "The Movie Database"
-msgstr ""
+msgstr "The Movie Database"
 
 #: ../src/plugin.py:645
 msgid ""
@@ -240,15 +240,15 @@ msgstr "Picons mit Servicenamen funktionieren auch, wenn sich die Service-Refere
 
 #: ../src/plugin.py:337
 msgid "VOD Menu"
-msgstr "VOD Menü"
+msgstr "VoD-Menü"
 
 #: ../src/plugin.py:846
 msgid "View video on demand and download a bouquet of live tv channels"
-msgstr "VOD and Download LiveTV-Bouquet"
+msgstr "VoD und Download LiveTV-Bouquet"
 
 #: ../src/plugin.py:720
 msgid "VoD country"
-msgstr ""
+msgstr "VoD-Land"
 
 #: ../src/PlutoDownload.py:695
 msgid "Waiting for Channel: "
@@ -268,4 +268,4 @@ msgstr "Servicereferenz"
 
 #: ../src/plugin.py:311
 msgid "the Internet Movie Database"
-msgstr "IMDb"
+msgstr "The Internet Movie Database"
