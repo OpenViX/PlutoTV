@@ -334,7 +334,7 @@ class PlutoTV(Screen, HelpableScreen):
 		self.initialise()
 
 	def initialise(self):
-		self.titlemenu = _("VOD Menu") + " - " + COUNTRY_NAMES[self.country]
+		self.titlemenu = _("VOD Menu") + (" - " + COUNTRY_NAMES[self.country] if self.country in COUNTRY_NAMES else "")
 		self.films = []
 		self.menu = []
 		self.history = []
