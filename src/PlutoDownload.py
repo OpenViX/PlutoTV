@@ -46,6 +46,7 @@ import requests
 import shutil
 import time
 import uuid
+import zlib
 
 import threading  # for fetching picons
 from twisted.internet import threads  # for updating GUI widgets
@@ -643,6 +644,7 @@ class PlutoDownloadBase():
 		self.bouquet = []
 		self.bouquetCC = cc
 		self.tsid = TSIDS.get(cc, "0")
+		self.usedServiceIds = set()
 		self.stop()
 		self.channelsList.clear()
 		self.guideList.clear()
@@ -773,9 +775,22 @@ class PlutoDownloadBase():
 			self.categories.append(group)
 
 		if int(channel["number"]) == 0:
-			number = _id[-4:].upper()
+			sid = int(_id[-4:], 16) if len(_id) >= 4 else 0
 		else:
-			number = "%X" % channel["number"]
+			sid = int(channel["number"])
+
+		if sid <= 0:
+			sid = (zlib.crc32(_id.encode("utf-8")) & 0xFFFF) or 1
+
+		if sid in self.usedServiceIds:
+			sid = (zlib.crc32(_id.encode("utf-8")) & 0xFFFF) or 1
+			while sid in self.usedServiceIds:
+				sid = (sid + 1) & 0xFFFF
+				if sid == 0:
+					sid = 1
+
+		self.usedServiceIds.add(sid)
+		number = "%X" % sid
 
 		self.channelsList[group].append((str(number), _id, channel["name"], logo, _id))
 		return True
