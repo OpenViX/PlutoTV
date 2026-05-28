@@ -46,6 +46,7 @@ import requests
 import shutil
 import time
 import uuid
+import zlib
 
 import threading  # for fetching picons
 from twisted.internet import threads  # for updating GUI widgets
@@ -649,11 +650,15 @@ class PlutoDownloadBase():
 		self.categories.clear()
 		threads.deferToThread(self.updateAction, cc)  # GUI widget
 		threads.deferToThread(self.updateProgressBar, 0)  # reset
-		threads.deferToThread(self.updateStatus, _("Processing data..."))  # GUI widget
+		threads.deferToThread(self.updateStatus, _("Fetching data..."))  # GUI widget
 		channels = sorted(plutoRequest.getChannels(cc), key=lambda x: x["number"])
-		guide = self.getGuidedata(cc)
-		[self.buildM3U(channel) for channel in channels]
 		self.total = len(channels)
+		guide = self.getGuidedata(cc)
+		sid_map = self.allocate_sids(channels)
+		if not sid_map:
+			return
+		for channel in channels:
+			self.buildM3U(channel, "%X" % sid_map[channel["_id"]])
 
 		if len(self.categories) == 0:
 			self.noCategories()
@@ -664,7 +669,8 @@ class PlutoDownloadBase():
 				self.subtotal = 0
 			self.key = 0
 			self.chitem = 0
-			[self.buildGuide(event) for event in guide]
+			for event in guide:
+				self.buildGuide(event)
 			for i in range(self.total + 1):
 				self.updateprogress(param=i)
 
@@ -737,14 +743,15 @@ class PlutoDownloadBase():
 			offset = datetime.datetime.now() - datetime.datetime.utcnow()
 			try:
 				starttime = self.strpTime(item["start"]) + offset
-			except:
+			except Exception as err:
+				print("[PlutoDownload] Invalid start time:", err)
 				return
 			start = time.mktime(starttime.timetuple())
 			title = (item.get("title", ""))
 			tvplot = (series.get("description", "") or series.get("summary", "") or chplot)
 			epnumber = episode.get("number", 0)
 			epseason = episode.get("season", 0)
-			epname = (episode["name"])
+			epname = episode.get("name", "")
 			epmpaa = episode.get("rating", "")
 			epplot = (episode.get("description", "") or tvplot or epname)
 
@@ -759,26 +766,50 @@ class PlutoDownloadBase():
 			if epdur > 0:
 				self.guideList[_id].append((title, epplot, start, epdur, genre))
 
-	def buildM3U(self, channel):
-		# (number, _id, name, logo, url)
+	def buildM3U(self, channel, sid):
 		logo = (channel.get("colorLogoPNG", {}).get("path", None) or None)
 		group = channel.get("category", "")
 		_id = channel["_id"]
 
-		# Build authenticated stitcher URL (same as pluto-for-channels)
-		url = plutoRequest.buildStreamURL(_id, self.bouquetCC)
-
-		if group not in list(self.channelsList.keys()):
+		if group not in self.channelsList:
 			self.channelsList[group] = []
 			self.categories.append(group)
 
-		if int(channel["number"]) == 0:
-			number = _id[-4:].upper()
-		else:
-			number = "%X" % channel["number"]
-
-		self.channelsList[group].append((str(number), _id, channel["name"], logo, _id))
+		self.channelsList[group].append((sid, _id, channel["name"], logo, _id))
 		return True
+
+	@staticmethod
+	def allocate_sids(channels):
+		used = set()
+		result = {}
+	
+		ch_ids = sorted(ch["_id"] for ch in channels)
+	
+		# pass 1: preferred SID
+		for ch_id in ch_ids:
+			sid = zlib.crc32(ch_id.encode()) & 0xFFFF or 1
+	
+			if sid not in used:
+				used.add(sid)
+				result[ch_id] = sid
+			else:
+				result[ch_id] = None
+	
+		# pass 2: deterministic fallback SID assignment
+		free = (i for i in range(1, 0x10000) if i not in used)
+	
+		for ch_id in ch_ids:
+			if result[ch_id] is None:
+				sid = next(free, None)
+	
+				if sid is None:
+					print("[PlutoDownload] ERROR: No more free service IDs available")
+					return
+	
+				used.add(sid)
+				result[ch_id] = sid
+	
+		return result
 
 	@staticmethod
 	def convertgenre(genre):
@@ -936,7 +967,8 @@ class DownloadSilent(PlutoDownloadBase):
 		print("[Pluto TV] There is no data, it is possible that Pluto TV is not available in your country.")
 		self.stop()
 		os.makedirs(os.path.dirname(TIMER_FILE), exist_ok=True)  # create config folder recursive if not exists
-		open(TIMER_FILE, "w").write(str(time.time()))
+		with open(TIMER_FILE, "w") as f:
+			f.write(str(time.time()))
 		self.start()
 
 
