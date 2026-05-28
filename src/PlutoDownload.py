@@ -782,33 +782,33 @@ class PlutoDownloadBase():
 	def allocate_sids(channels):
 		used = set()
 		result = {}
-	
+
 		ch_ids = sorted(ch["_id"] for ch in channels)
-	
+
 		# pass 1: preferred SID
 		for ch_id in ch_ids:
 			sid = zlib.crc32(ch_id.encode()) & 0xFFFF or 1
-	
+
 			if sid not in used:
 				used.add(sid)
 				result[ch_id] = sid
 			else:
 				result[ch_id] = None
-	
+
 		# pass 2: deterministic fallback SID assignment
 		free = (i for i in range(1, 0x10000) if i not in used)
-	
+
 		for ch_id in ch_ids:
 			if result[ch_id] is None:
 				sid = next(free, None)
-	
+
 				if sid is None:
 					print("[PlutoDownload] ERROR: No more free service IDs available")
 					return
-	
+
 				used.add(sid)
 				result[ch_id] = sid
-	
+
 		return result
 
 	@staticmethod
