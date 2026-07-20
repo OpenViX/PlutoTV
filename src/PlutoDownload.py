@@ -104,6 +104,9 @@ class PlutoRequest:
 	# for URL insertion at runtime
 	PLUTO_SCHEMA = "pluto%3a//"
 
+	# JMP2 proxy URL template (alternative live stream source, resolved at bouquet-build time)
+	JMP2_URL_TEMPLATE = "https://jmp2.uk/plu-%s.m3u8"
+
 	def __init__(self):
 		self.session = requests.Session()
 		self.bootCache = {}
@@ -468,6 +471,7 @@ TSIDS = {cc: "%X" % i for i, cc in enumerate(COUNTRY_NAMES, 1)}
 config.plugins.plutotv = ConfigSubsection()
 config.plugins.plutotv.country = ConfigSelection(default="local", choices=[("local", _("Local"))] + list(COUNTRY_NAMES.items()))
 config.plugins.plutotv.picons = ConfigSelection(default="snp", choices=[("snp", _("service name")), ("srp", _("service reference")), ("", _("None"))])
+config.plugins.plutotv.live_tv_mode = ConfigSelection(default="plutotv", choices=[("plutotv", _("PlutoTV")), ("proxy", _("Proxy (JMP2)"))])
 
 
 def getselectedcountries(skip=0):
@@ -693,7 +697,12 @@ class PlutoDownloadBase():
 
 				ch_sid, ch_hash, ch_name, ch_logourl, _id = self.channelsList[key][self.chitem]
 
-				self.bouquet.append("4097:0:1:%s:%s:FF:CCCC0000:0:0:0:%s:%s" % (ch_sid, self.tsid, plutoRequest.PLUTO_SCHEMA + _id, ch_name))
+				if config.plugins.plutotv.live_tv_mode.value == "proxy":
+					stream_url = (plutoRequest.JMP2_URL_TEMPLATE % _id).replace(":", "%3a")
+				else:
+					stream_url = plutoRequest.PLUTO_SCHEMA + _id
+
+				self.bouquet.append("4097:0:1:%s:%s:FF:CCCC0000:0:0:0:%s:%s" % (ch_sid, self.tsid, stream_url, ch_name))
 				self.chitem += 1
 
 				ref = "4097:0:1:%s:%s:FF:CCCC0000:0:0:0" % (ch_sid, self.tsid)
