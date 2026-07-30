@@ -761,7 +761,7 @@ class Pluto_Player(MoviePlayer):
 		self.session = session
 		self.mpservice = service
 		self.id = sid
-		MoviePlayer.__init__(self, self.session, service, sid)
+		MoviePlayer.__init__(self, self.session, service)
 		self.end = False
 		self.started = False
 		self.skinName = ["MoviePlayer"]
